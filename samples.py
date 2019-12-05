@@ -28,6 +28,7 @@ yt = YoutubeApi(API_KEY)
 #pprint(videos)
 
 #comments = yt.get_comments('7lqVYoKiMfw')
+#comments = yt.get_comments('7lqVYoKiMfw', fields='nextPageToken,items(id,snippet(videoId,topLevelComment(id,snippet(authorDisplayName,textDisplay,textOriginal,publishedAt,updatedAt,viewerRating))))')
 #comments = yt.get_comments(id='Uggb3EPddGJet3gCoAEC')
 #comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC')
 #comments = yt.get_comments('268a2Gyq-fc')

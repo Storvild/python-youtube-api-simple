@@ -162,9 +162,9 @@ class YoutubeApi():
         
         return res
     
-    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=100, order='relevance', textFormat='html'):
+    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=1000, order='relevance', textFormat='html'):
         """ Получить комментарии к видео 
-            Обязательно заполнить хотя бы один из параметров:
+            Обязательно заполнить один из параметров:
                 videoId - комментарии к видео
                 id - id комментария или список id через запятую
                 parentId - ответы на комментарий (id)
@@ -183,10 +183,18 @@ class YoutubeApi():
         else:
             url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&parentId={parentId}&textFormat={textFormat}&key={API_KEY}'.format(**{'fields':fields, 'parentId':parentId, 'maxResults':maxResults, 'textFormat':textFormat, 'API_KEY':self.ApiKey})
             
-        obj = requests.get(url)
-        content =  obj.json()
-        
-        return content
+        res = []
+        pageToken = ''
+        for i in range(0, limit, maxResults):
+            obj_json = self.download_json(url, pageToken)
+            content =  obj_json
+            res.extend(content['items'])
+            if 'nextPageToken' in content:
+                pageToken = content['nextPageToken']
+            else:
+                break
+        res = res[:limit]        
+        return res
 
 
 if __name__ == '__main__':

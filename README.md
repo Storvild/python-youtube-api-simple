@@ -20,15 +20,18 @@ playlists = yt.get_playlists('<channelId>')
 
 #### Получение плейлистов с канала:    
 ```python    
-playlists = yt.get_playlists('UC4iAuuvx9hJilx4QOcd8V6A1')```
+playlists = yt.get_playlists('UC4iAuuvx9hJilx4QOcd8V6A1')    
+```
 
 #### Получение каналов по названию    
 ```python    
-channels = yt.get_channels('квн', limit=3)```
+channels = yt.get_channels('квн', limit=3)    
+```
 
 #### Получить каналы по названию в которых будут указаны определенные поля    
 ```python    
-channels = yt.get_channels('квн', fields='id,snippet(title,channelId,channelTitle,description,publishedAt)', limit=3)```
+channels = yt.get_channels('квн', fields='id,snippet(title,channelId,channelTitle,description,publishedAt)', limit=3)    
+```
 
 #### Получить комментарии    
 ```python    
