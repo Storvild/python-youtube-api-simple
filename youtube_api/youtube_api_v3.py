@@ -20,7 +20,7 @@ def fake_download(url, pageToken):
 
 class YoutubeApi():
     def __init__(self, ApiKey):
-        assert ApiKey != ''
+        assert ApiKey != '', 'YoutubeApi: Необходимо указать KEY_API'
         self.ApiKey = ApiKey
 
 
@@ -54,7 +54,7 @@ class YoutubeApi():
         
         maxResults = 50
         q = channelName
-        url = 'https://www.googleapis.com/youtube/v3/search?type=channel&part=snippet&fields={fields}&maxResults={max_results}&order={order}&q={q}&key={api_key}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'api_key':self.ApiKey})
+        url = 'https://www.googleapis.com/youtube/v3/search?type=channel&part=snippet&fields={fields}&maxResults={max_results}&order={order}&q={q}&key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':self.ApiKey})
         
         res = []
         pageToken = ''
@@ -85,7 +85,7 @@ class YoutubeApi():
             fields = 'nextPageToken,items({})'.format(fields)
             
         maxResults = 50
-        url = 'https://www.googleapis.com/youtube/v3/search?type=playlist&part=snippet&fields={fields}&channelId={channel_id}&maxResults={max_results}&order={order}&key={api_key}'.format(**{'fields':fields,'channel_id':channelId,'max_results':maxResults,'order':order,'api_key':self.ApiKey})
+        url = 'https://www.googleapis.com/youtube/v3/search?type=playlist&part=snippet&fields={fields}&channelId={channel_id}&maxResults={max_results}&order={order}&key={API_KEY}'.format(**{'fields':fields,'channel_id':channelId,'max_results':maxResults,'order':order,'API_KEY':self.ApiKey})
         
         res = []
         pageToken = ''
@@ -109,6 +109,20 @@ class YoutubeApi():
             part - получение информации о видео (snippet), лайки/дизлайки (statistics), длительность видео (contentDetails)
                 (cost=3+2*part, например получение одной страницы с part='snippet,contentDetails' cost=7)
                 part='snippet,statistics,contentDetails'
+                Варианты данных указываемых в параметре part с указанием затрат на один запрос (всего на один проект выдается 10000 в день)
+                contentDetails: 2
+                fileDetails: 1
+                id: 0
+                liveStreamingDetails: 2
+                localizations: 2
+                player: 0
+                processingDetails: 1
+                recordingDetails: 2
+                snippet: 2
+                statistics: 2
+                status: 2
+                suggestions: 1
+                topicDetails: 2
             fields - какие поля оставить в результирующем запросе. fields='*' - все поля
                 fields='items(id,contentDetails,snippet(title,publishedAt,channelId,channelTitle,description),statistics'
         """
@@ -136,7 +150,7 @@ class YoutubeApi():
             #print(i, i+maxResults)
             ids = ','.join(videoIDs[i:i+maxResults])
             #print(ids)
-            url = f'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}&maxResults={maxResults}&key={self.ApiKey}'
+            url = 'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}&maxResults={maxResults}&key={API_KEY}'.format(**{'part':part,'fields':fields,'ids':ids,'maxResults':maxResults,'API_KEY':self.ApiKey})
             obj = self.download_json(url)
             #pprint(obj)
             res.extend(obj['items'])
@@ -147,6 +161,32 @@ class YoutubeApi():
         #print(url)
         
         return res
+    
+    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=100, order='relevance', textFormat='html'):
+        """ Получить комментарии к видео 
+            Обязательно заполнить хотя бы один из параметров:
+                videoId - комментарии к видео
+                id - id комментария или список id через запятую
+                parentId - ответы на комментарий (id)
+            order - сортировка relevance или date
+            textFormat - plainText или html
+        """
+        assert videoId!='' or id!='' or parentId!='', 'Должен быть заполнен один из параметров videoId, id или parentId'
+        maxResults = 100
+        if limit<100:
+            maxResults = limit
+        #fields = '*'
+        if videoId:
+            url='https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&fields={fields}&maxResults={maxResults}&videoId={videoId}&textFormat={textFormat}&key={API_KEY}'.format(**{'fields':fields, 'videoId':videoId, 'maxResults':maxResults, 'textFormat':textFormat, 'API_KEY':self.ApiKey})
+        elif id:
+            url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&id={id}&textFormat={textFormat}&key={API_KEY}'.format(**{'fields':fields, 'id':id, 'maxResults':maxResults, 'textFormat':textFormat, 'API_KEY':self.ApiKey})
+        else:
+            url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&parentId={parentId}&textFormat={textFormat}&key={API_KEY}'.format(**{'fields':fields, 'parentId':parentId, 'maxResults':maxResults, 'textFormat':textFormat, 'API_KEY':self.ApiKey})
+            
+        obj = requests.get(url)
+        content =  obj.json()
+        
+        return content
 
 
 if __name__ == '__main__':
