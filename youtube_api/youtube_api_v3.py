@@ -49,30 +49,44 @@ class YoutubeApi():
         #print(fromdate,todate)
         delta_list = []
         if part_by=='day':
+            # Первый день
+            fromdate_part_begin = fromdate 
+            todate_part_begin = min(fromdate + relativedelta(hour=23, minute=59, second=59, microsecond=0), todate)
+            delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
+            #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
             delta = todate - fromdate
             days = delta.days if delta.seconds==0 else delta.days+1
-            for i in range(days):
+            for i in range(1,days-1):
                 fromdate_part = fromdate.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=i)
                 todate_part = fromdate.replace(hour=23, minute=59, second=59, microsecond=0) + timedelta(days=i)
                 delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-                #print(i, fromdate_part, '-', todate_part )
+            # Последний день
+            if delta_list[-1]['todate']  < todate.replace(microsecond=0):
+                fromdate_part_end = (todate + relativedelta(hour=0, minute=0, second=0)).replace(microsecond=0)
+                todate_part_end = todate.replace(microsecond=0) #+ relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
+                delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
+                #print(fromdate_part_end, '-', todate_part_end, 'END')
+
         elif part_by=='month':
             # Первый месяц
             fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
             todate_part_begin = min(fromdate + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0), todate)
             delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
-            #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
-            for i in range(fromdate.month+1, todate.month):
-                fromdate_part = fromdate + relativedelta(month=i, day=1, hour=0, minute=0, second=0, microsecond=0) #.replace(month=i,day=1,hour=0,minute=0,second=0,microsecond=0)
-                todate_part = fromdate + relativedelta(month=i, day=31, hour=23, minute=59, second=59, microsecond=0)
+
+            fromdate_part = todate_part_begin + timedelta(seconds=1)
+            while fromdate_part < todate.replace(hour=0,minute=0,second=0,microsecond=0):
+                #print(fromdate_part, todate.replace(hour=0,minute=0,second=0,microsecond=0))
+                todate_part = fromdate_part + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
                 delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-                #print(fromdate_part, '-', todate_part)
+                fromdate_part = (fromdate_part + timedelta(days=31)).replace(day=1)
+
             # Последний месяц
             if delta_list[-1]['todate']  < todate.replace(microsecond=0):
                 fromdate_part_end = (todate + relativedelta(day=1, hour=0, minute=0, second=0)).replace(microsecond=0)
                 todate_part_end = todate.replace(microsecond=0) #+ relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
                 delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
                 #print(fromdate_part_end, '-', todate_part_end, 'END')
+               
         elif part_by=='year':
             # Первый год
             fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
@@ -281,7 +295,6 @@ class YoutubeApi():
         
 if __name__ == '__main__':
     yt = YoutubeApi('123')
-    
     #yt._get_delta_list(dt1,dt2,part_by_day=True, part_by_month=False)
     #yt._get_delta_list(dt1,dt2, part=10, part_by_day=False, part_by_month=False)
     #yt.get_playlists('')
