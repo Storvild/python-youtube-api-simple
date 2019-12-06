@@ -22,6 +22,7 @@ class YoutubeApi():
     def __init__(self, ApiKey):
         assert ApiKey != '', 'YoutubeApi: Необходимо указать KEY_API'
         self.ApiKey = ApiKey
+        self.result_raw = None
 
 
     def download_json(self, url, pageToken=''):
@@ -36,7 +37,7 @@ class YoutubeApi():
         return res
 
 
-    def search(self, q='', channelId='', playlistId='', order='date'):
+    def get_search(self, q='', channelId='', playlistId='', order='date'):
         res = []
         url = ''
         pprint(url)
@@ -68,6 +69,7 @@ class YoutubeApi():
                 pageToken = content['nextPageToken']
             else:
                 break        
+        self.result_raw = res
         res = res[:limit]
         return res
 
@@ -99,7 +101,8 @@ class YoutubeApi():
                 pageToken = content['nextPageToken']
             else:
                 break
-        res = res[:limit]        
+        self.result_raw = res
+        res = res[:limit]
         return res
         
     
@@ -156,9 +159,8 @@ class YoutubeApi():
             res.extend(obj['items'])
             if (i+maxResults)>limit and limit>0:
                 break
-
+        self.result_raw = res
         res = res[:limit]           
-        #print(url)
         
         return res
     
@@ -172,6 +174,12 @@ class YoutubeApi():
             textFormat - plainText или html
         """
         assert videoId!='' or id!='' or parentId!='', 'Должен быть заполнен один из параметров videoId, id или parentId'
+        
+        if fields in ('','*'):
+            fields = '*'
+        elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+            fields = 'nextPageToken,items({})'.format(fields)
+        
         maxResults = 100
         if limit<100:
             maxResults = limit
@@ -193,6 +201,7 @@ class YoutubeApi():
                 pageToken = content['nextPageToken']
             else:
                 break
+        self.result_raw = res
         res = res[:limit]        
         return res
 

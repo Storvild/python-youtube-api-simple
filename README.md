@@ -30,13 +30,17 @@ channels = yt.get_channels('квн', limit=3)
 
 #### Получить каналы по названию в которых будут указаны определенные поля    
 ```python    
-channels = yt.get_channels('квн', fields='id,snippet(title,channelId,channelTitle,description,publishedAt)', limit=3)    
+fields = 'id,snippet(title,channelId,channelTitle,description,publishedAt)'
+channels = yt.get_channels('квн', fields=fields, limit=3)    
 ```
 
 #### Получить комментарии    
 ```python    
-comments = yt.get_comments(videoId='268a2Gyq-fc') # Получить комментарии к видео    
-comments = yt.get_comments(id='Uggb3EPddGJet3gCoAEC') # Получить комментарий с определенным id или несколькими id через запятую    
-comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC') # Получить ответы на комментарии    
+# Получить комментарии к видео    
+comments = yt.get_comments(videoId='268a2Gyq-fc')    
+# Получить комментарий с определенным id или несколькими id через запятую    
+comments = yt.get_comments(id='Uggb3EPddGJet3gCoAEC')    
+# Получить ответы на комментарии    
+comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC')    
 ```
 
