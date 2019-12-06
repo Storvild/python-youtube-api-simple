@@ -1,5 +1,9 @@
 from youtube_api.youtube_api_v3 import YoutubeApi
-from settings import API_KEY
+try:
+    from settings import API_KEY
+except:
+    print("Внимание!!!\n  Создайте файл settings.py рядом с sample.py и запишите туда строку:\nAPI_KEY = '<Ваш API_KEY>'\n")
+    print("API_KEY от Google можно получить здесь: https://console.developers.google.com/project\n")
 from pprint import pprint
 
 yt = YoutubeApi(API_KEY)
@@ -34,5 +38,28 @@ yt = YoutubeApi(API_KEY)
 #comments = yt.get_comments('268a2Gyq-fc')
 #comments = yt.get_comments(id='UgyteV0exQnVVEnh7dh4AaABAg')
 #comments = yt.get_comments(id='UgyteV0exQnVVEnh7dh4AaABAg', textFormat='plainText')
-comments = yt.get_comments(parentId='UgyteV0exQnVVEnh7dh4AaABAg')
-pprint(comments)
+#comments = yt.get_comments(parentId='UgyteV0exQnVVEnh7dh4AaABAg')
+#pprint(yt.result_raw)
+#pprint(comments)
+
+def _get_delta_list_test():
+    from datetime import datetime
+    dt1 = datetime(2019,3,6,10,30,0)
+    dt2 = datetime.now()
+    #dt2 = datetime(2019,12,6)
+    #yt._get_delta_list(dt1,dt2,part=5)
+    #yt.test(dt1,dt2,part_by_day=False, part_by_month=True)
+    yt._get_delta_list(datetime(2019,3,15,10,20,0),datetime(2019,8,3,22,40,0),part_by='day')
+    #yt._get_delta_list(datetime(2019,3,31,10,20,0),datetime(2019,4,1,22,40,0),part_by='month')
+    #yt._get_delta_list(datetime(2019,3,10,10,20,0),datetime(2019,3,13,22,40,0),part_by='month')
+    #yt._get_delta_list(datetime(2019,3,31,10,20,0),datetime(2019,6,1,22,40,0),part_by='month')
+    #yt._get_delta_list(datetime(2019,3,31,10,20,0),datetime(2019,6,30,23,59,59),part_by='month')
+    #yt._get_delta_list(datetime(2019,3,31,10,20,0),datetime(2019,6,1,0,0,0),part_by='month')
+    #yt._get_delta_list(datetime(2015,3,31,10,20,0),datetime(2019,6,1,0,0,0),part_by='year')
+    #yt._get_delta_list(datetime(2019,3,31,10,20,0),datetime(2019,6,10,10,31,0),part_by='year')
+    #yt._get_delta_list(datetime(2018,12,31,23,59,59),datetime(2019,6,10,10,31,0),part_by='year')
+    #yt._get_delta_list(datetime(2018,1,1,0,0,0),datetime(2019,6,10,10,31,0),part_by='year')
+    #yt._get_delta_list(datetime(2018,1,1,0,0,0),datetime(2018,1,1,0,0,0),part_by='year')
+
+_get_delta_list_test()
+

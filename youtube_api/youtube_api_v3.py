@@ -1,6 +1,8 @@
 import requests
 import json
 from pprint import pprint
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 def print_log(*args, **kwargs):
     print(*args, **kwargs)
@@ -26,6 +28,7 @@ class YoutubeApi():
 
 
     def download_json(self, url, pageToken=''):
+        """ Загрузка json"""
         if pageToken!='':
             url += '&pageToken={}'.format(pageToken)
         
@@ -36,14 +39,76 @@ class YoutubeApi():
         #pprint(res)
         return res
 
-
-    def get_search(self, q='', channelId='', playlistId='', order='date'):
-        res = []
-        url = ''
-        pprint(url)
-        return res
-
-
+    def _get_delta_list(self, fromdate, todate, part=1, part_by=None):
+        """ Получить разбивку дат по периодам
+            part=10 - Равномерное разбитие на 10 частей
+            part_by_day=True - Разбитие по дням
+            part_by_month - Разбитие по месяцам
+        """
+        assert part_by in (None, '', 'day', 'month', 'year')
+        #print(fromdate,todate)
+        delta_list = []
+        if part_by=='day':
+            delta = todate - fromdate
+            days = delta.days if delta.seconds==0 else delta.days+1
+            for i in range(days):
+                fromdate_part = fromdate.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=i)
+                todate_part = fromdate.replace(hour=23, minute=59, second=59, microsecond=0) + timedelta(days=i)
+                delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
+                #print(i, fromdate_part, '-', todate_part )
+        elif part_by=='month':
+            # Первый месяц
+            fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
+            todate_part_begin = min(fromdate + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0), todate)
+            delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
+            #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
+            for i in range(fromdate.month+1, todate.month):
+                fromdate_part = fromdate + relativedelta(month=i, day=1, hour=0, minute=0, second=0, microsecond=0) #.replace(month=i,day=1,hour=0,minute=0,second=0,microsecond=0)
+                todate_part = fromdate + relativedelta(month=i, day=31, hour=23, minute=59, second=59, microsecond=0)
+                delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
+                #print(fromdate_part, '-', todate_part)
+            # Последний месяц
+            if delta_list[-1]['todate']  < todate.replace(microsecond=0):
+                fromdate_part_end = (todate + relativedelta(day=1, hour=0, minute=0, second=0)).replace(microsecond=0)
+                todate_part_end = todate.replace(microsecond=0) #+ relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
+                delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
+                #print(fromdate_part_end, '-', todate_part_end, 'END')
+        elif part_by=='year':
+            # Первый год
+            fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
+            todate_part_begin = min(fromdate + relativedelta(month=12, day=31, hour=23, minute=59, second=59, microsecond=0), todate)
+            delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
+            #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
+            for i in range(fromdate.year+1, todate.year):
+                fromdate_part = fromdate + relativedelta(year=i, month=1, day=1, hour=0, minute=0, second=0, microsecond=0) 
+                todate_part = fromdate + relativedelta(year=i, month=12, day=31, hour=23, minute=59, second=59, microsecond=0)
+                delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
+                #print(fromdate_part, '-', todate_part)
+            # Последний год
+            if delta_list[-1]['todate']  < todate.replace(microsecond=0):
+                fromdate_part_end = (todate + relativedelta(month=1, day=1, hour=0, minute=0, second=0)).replace(microsecond=0)
+                todate_part_end = todate.replace(microsecond=0)
+                delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
+                #print(fromdate_part_end, '-', todate_part_end, 'END')
+        else:
+            delta = todate - fromdate
+            delta_by_part = delta/part
+            #print('Кол-во часте:', part)
+            #print('Всего дней:', delta)
+            #print('Дней на часть:', delta_by_part)
+            for i in range(part):
+                fromdate_part = (fromdate + i*delta_by_part).replace(microsecond=0)
+                todate_part = (fromdate.replace(microsecond=0) + i*delta_by_part + delta_by_part - timedelta(seconds=1)).replace(microsecond=0)
+                delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
+                #print(i, fromdate_part, '-', todate_part)
+        
+        for i in delta_list:
+            print(i['fromdate'], '-', i['todate'])
+        
+        return delta_list
+        
+        
+        
     def get_channels(self, channelName, fields='*', limit=1000, order='relevance'):
         """ Поиск каналов по имени """
         assert order in ('date','rating','relevance','title','videoCount','viewCount'), 'get_playlists: Неправильный параметр order: {}'.format(order)
@@ -206,8 +271,19 @@ class YoutubeApi():
         return res
 
 
+    def get_search(self, q='', channelId='', playlistId='', order='date'):
+        res = []
+        url = ''
+        pprint(url)
+        return res
+    
+
+        
 if __name__ == '__main__':
     yt = YoutubeApi('123')
+    
+    #yt._get_delta_list(dt1,dt2,part_by_day=True, part_by_month=False)
+    #yt._get_delta_list(dt1,dt2, part=10, part_by_day=False, part_by_month=False)
     #yt.get_playlists('')
     #playlists = yt.get_playlists('UCSZ69a-0I1RRdNssyttBFcA')
     #playlists = yt.get_playlists(channelId='UC4iAuuvx9hJilx4QOcd8V6A')
