@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import time
 from dateutil.relativedelta import relativedelta
 import re
+#from . import utils
 import utils
 
 def print_log(*args, **kwargs):
@@ -36,7 +37,7 @@ class YoutubeItem():
     def __str__(self):
         return '{} {} {} {} {}'.format(self.type, self.code, self.title, self.description, self.publishedAt)
     def __repr__(self):
-        return '{} {:15} {:30} {:20} {}'.format(self.type, truncatechars(self.code,15), truncatechars(self.title,30), truncatechars(self.description,20), self.publishedAt)
+        return '{} {:15} {:30} {:20} {}'.format(self.type, utils.truncatechars(self.code,15), utils.truncatechars(self.title,30), utils.truncatechars(self.description,20), self.publishedAt)
 
 
 class YoutubeApi():
@@ -52,13 +53,11 @@ class YoutubeApi():
             url += '&pageToken={}'.format(pageToken)
         
         #res = fake_download(url, pageToken)
-        obj = requests.get(url)
-        try:
-            res = obj.json()
-        except:
-            pprint(obj)
-            raise
-        #pprint(res)
+
+        res = utils.download_json(url)
+        #if 'item' not in res:
+        #    utils.YoutubeException('')
+
         return res
 
        
@@ -108,7 +107,7 @@ class YoutubeApi():
         return res
     
         
-    def get_channels(self, channelName, fields='*', limit=1000, order='relevance'):
+    def get_channels(self, channelName, fields='*', limit=1000, order='relevance', page_handler=None):
         """ Поиск каналов по имени """
         assert order in ('date','rating','relevance','title','videoCount','viewCount'), 'get_playlists: Неправильный параметр order: {}'.format(order)
         assert channelName!='', 'get_playlists: Не задано имя канала (channelName)'
@@ -129,6 +128,12 @@ class YoutubeApi():
             content =  obj_json
             #print_log(content)
             res.extend(content['items'])
+
+            if page_handler:
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token=pageToken)
+                if do_continue is False:
+                    break
+
             if 'nextPageToken' in content:
                 pageToken = content['nextPageToken']
             else:
@@ -137,8 +142,7 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
-    
-    def get_playlists(self, channelId, fields='*', limit=1000, order='date'):
+    def get_playlists(self, channelId, fields='*', limit=1000, order='date', page_handler=None):
         """ Скачать плейлисты определенного канала
             channelId - id канала
             fields - поля
@@ -162,6 +166,12 @@ class YoutubeApi():
             #pprint(content)
             #print_log(content)
             res.extend(content['items'])
+
+            if page_handler:
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token=pageToken)
+                if do_continue is False:
+                    break
+
             if 'nextPageToken' in content:
                 pageToken = content['nextPageToken']
             else:
@@ -222,6 +232,7 @@ class YoutubeApi():
             obj = self.download_yt_json(url)
             #pprint(obj)
             res.extend(obj['items'])
+
             if (i+maxResults)>limit and limit>0:
                 break
         self.result_raw = res
@@ -229,7 +240,7 @@ class YoutubeApi():
         
         return res
     
-    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=1000, order='relevance', textFormat='html'):
+    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=1000, order='relevance', textFormat='html', page_handler=None):
         """ Получить комментарии к видео 
             Обязательно заполнить один из параметров:
                 videoId - комментарии к видео
@@ -239,15 +250,16 @@ class YoutubeApi():
             textFormat - plainText или html
         """
         assert videoId!='' or id!='' or parentId!='', 'Должен быть заполнен один из параметров videoId, id или parentId'
-        
+
         if fields in ('','*'):
             fields = '*'
         elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
             fields = 'nextPageToken,items({})'.format(fields)
-        
-        maxResults = 100
+
+        maxResults = 100  # По умолчанию 100
         if limit<100:
             maxResults = limit
+
         #fields = '*'
         url = ''
         if videoId:
@@ -256,19 +268,25 @@ class YoutubeApi():
             url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&id={id}&textFormat={textFormat}&order={order}&key={API_KEY}'.format(**{'fields':fields, 'id':id, 'maxResults':maxResults, 'textFormat':textFormat, 'order':order, 'API_KEY':self.ApiKey})
         elif parentId:
             url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&parentId={parentId}&textFormat={textFormat}&order={order}&key={API_KEY}'.format(**{'fields':fields, 'parentId':parentId, 'maxResults':maxResults, 'textFormat':textFormat, 'order':order, 'API_KEY':self.ApiKey})
-            
+
         res = []
         pageToken = ''
         for i in range(0, limit, maxResults):
             obj_json = self.download_yt_json(url, pageToken)
-            content =  obj_json
+            content = obj_json
             res.extend(content['items'])
+
+            if page_handler:
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token=pageToken)
+                if do_continue is False:
+                    break
+
             if 'nextPageToken' in content:
                 pageToken = content['nextPageToken']
             else:
                 break
         self.result_raw = res
-        res = res[:limit]        
+        res = res[:limit]
         return res
 
     def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=1000, part='id,snippet,contentDetails', fields='*', order='date', fullInfo=False):
@@ -339,6 +357,7 @@ class YoutubeApi():
 if __name__ == '__main__':
     from pprint import pprint
     yt = YoutubeApi('123')
+    #obj = yt.download_yt_json('http://yandex.ru'); pprint(obj)
     #yt._result_parse()
     #dt1 = datetime(2019,11,3,10,54)
     #dt2 = datetime.now()

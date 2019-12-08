@@ -1,3 +1,36 @@
+"""
+    Модуль содержащий функции связанные с youtube_api_v3.py
+    
+    Преобразование времени (youtube) в секунды:
+        ytdate_to_sec('PT1H24S') -> 3624
+    Преобразование времени (youtube) в дельту:
+        ytdate_to_timedelta('P10DT2H16M36S') -> 10days, 2:16:36
+    Сохранение json в файл:
+        save_json('myfile.json', content) -> Сохранить json в файл
+    Загрузка json из файла:
+        obj = load_json('myfile.json') -> Загрузить json из файла
+    Загрузка json из url:
+        obj = download_json('http://mysite/json') -> Загрузить из сети json
+    Разбивка диапазона на периоды:
+        parts = date_period_into_parts(datetime.datetime(2019,8,3), datetime.datetime(2019,11,5,12,30), part=5) # на 5 частей
+        parts = date_period_into_parts(datetime.datetime(2019,8,3), datetime.datetime(2019,11,5,12,30), part_by='day') # по дням
+    Урезание строки
+        truncatechars('Длинный текст', 8, onestring=True) -> 'Длинн...'
+"""
+
+class DownloadException(Exception):
+    def __init__(self, message, response_status, response_url, response_content, response_encoding):
+        # Call the base class constructor with the parameters it needs
+        super().__init__(message)
+        # Now for your custom code...
+        self.message = message
+        self.response_status = response_status
+        self.response_url = response_url
+        self.response_content = response_content
+        self.response_encoding = response_encoding
+
+    def __str__(self):
+        return 'Ошибка получения Json-данных: {}\nSTATUS: {}\nTEXT: {}\nURL: {}\nENCODING: {}'.format(self.message, self.response_status, self.response_content, self.response_url, self.response_encoding)
 
 
 def ytdate_to_sec(ytdate):
@@ -99,13 +132,32 @@ def load_json(filename, encoding='utf-8'):
         return json.load(f)
 
 def download_json(url):
-    """ Загрузка json"""
-    obj = requests.get(url)
+    """ Загрузка json """
+    import json.decoder
+    import requests
+    res = {}
+    response = requests.get(url)
     try:
-        res = obj.json()
-    except:
-        pprint(obj)
-        raise
+        res = response.json()
+        # print('Status:', response.status_code)
+        # print('URL:', response.url)
+        # print('TEXT:', response.text)
+        # print('Encoding:', response.encoding)
+    except json.decoder.JSONDecodeError as e:
+        #print('MSG:', e.msg)
+        #print('DOC:', e.doc)
+        #print('pos, colno, lineno:',e.pos, e.colno, e.lineno)
+        #raise e
+        raise DownloadException(str(e), response.status_code, response.url, response.text, response.encoding)
+    except Exception as e:
+        #print('Status:', response.status_code)
+        #print('URL:', response.url)
+        #print('TEXT:', response.text)
+        #print('Encoding:', response.encoding)
+        #print(type(e))
+        raise e
+        #raise DownloadException('Ошибка получения json', response.status_code, response.url, response.text, response.encoding)
+
     return res
 
 
@@ -223,6 +275,9 @@ def truncatechars(text, length, onestring=True):
     :type length: int
     :type onestring: bool
     :rtype: str
+    
+    Примеры:
+        truncatechars('Длинный текст', 8, onestring=True) -> 'Длинн...'
     """
     if onestring:
         text = text.replace('\n',' ').strip()
@@ -233,34 +288,39 @@ def truncatechars(text, length, onestring=True):
     return res
 
 
-
 if __name__ == '__main__':
     from pprint import pprint
     from datetime import datetime as dt
-    print(ytdate_to_sec('PT1H24S'))
-    print(ytdate_to_sec('PT2H16M36S'))
-    print()
-    print(ytdate_to_str('PT1H24S'))
-    print(ytdate_to_str('PT2H16M36S'))
-    print(ytdate_to_str('P10DT2H16M36S'))
-    print()
-    print(ytdate_to_timedelta('PT1H24S'))
-    print(ytdate_to_timedelta('PT2H16M36S'))
-    print(ytdate_to_timedelta('P10DT2H16M36S'))
-    #save_json('my_test.json', {'id':'УИ','fullname':'Тест', 'items':[1,2,3]}) 
-    #save_json('my_test_format.json', {'id':'УИ','fullname':'Тест', 'items':[1,2,3]}, format=True) 
-    #obj = load_json('my_test.json'); pprint(obj)
-    #parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now(), part=3)
-    #parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now())
-    #parts = date_period_into_parts(dt(2019,8,1,10,31), dt(2019,12,4,8,18), part=3)
-    #pprint(parts)
-    parts = date_period_into_parts(dt(2019, 8, 6, 10, 31), dt(2019, 10, 4, 8, 18), part_by='month')
-    for i in parts:
-        print(i['fromdate'], '-', i['todate'])
-    #p = date_period_into_parts(fromdate=dt(2019,9,5), todate=dt.now()); pprint(p)
-    #print(dt(2019,10,2))
-    
-    
+    import requests
+    # print(ytdate_to_sec('PT1H24S'))
+    # print(ytdate_to_sec('PT2H16M36S'))
+    # print()
+    # print(ytdate_to_str('PT1H24S'))
+    # print(ytdate_to_str('PT2H16M36S'))
+    # print(ytdate_to_str('P10DT2H16M36S'))
+    # print()
+    # print(ytdate_to_timedelta('PT1H24S'))
+    # print(ytdate_to_timedelta('PT2H16M36S'))
+    # print(ytdate_to_timedelta('P10DT2H16M36S'))
+    # save_json('my_test.json', {'id':'УИ','fullname':'Тест', 'items':[1,2,3]})
+    # save_json('my_test_format.json', {'id':'УИ','fullname':'Тест', 'items':[1,2,3]}, format=True)
+    # obj = load_json('my_test.json'); pprint(obj)
+    # parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now(), part=3)
+    # parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now())
+    # arts = date_period_into_parts(dt(2019,8,1,10,31), dt(2019,12,4,8,18), part=3)
+    # pprint(parts)
+    # parts = date_period_into_parts(dt(2019, 8, 6, 10, 31), dt(2019, 10, 4, 8, 18), part_by='month')
+    # for i in parts:
+    #     print(i['fromdate'], '-', i['todate'])
+    # p = date_period_into_parts(fromdate=dt(2019,9,5), todate=dt.now()); pprint(p)
+    # print(dt(2019,10,2))
+    # txt = truncatechars('Длинный текст', 8, onestring=True); print(txt)
+    # txt = truncatechars('Длинный', 6, onestring=True); print(txt)
+    #obj = download_json('http://yandex.ru/'); pprint(obj)
+    #obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY'); pprint(obj)
+    #obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY_'); pprint(obj)
+    obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY_'); pprint(obj)
+
     
 
 

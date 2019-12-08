@@ -1,4 +1,6 @@
 from youtube_api.youtube_api_v3 import YoutubeApi
+from youtube_api import utils
+
 try:
     from settings import API_KEY
 except:
@@ -7,6 +9,7 @@ except:
 from pprint import pprint
 import os
 import json
+
 
 os.chdir(os.path.dirname(__file__)) # Работаем в текущем каталоге
 
@@ -59,17 +62,30 @@ def get_playlists():
 #videos = yt.get_videos_info(['7lqVYoKiMfw','7LeO_r8_L3k','_-pPLzyplS0','4ZMv35U9oYw','MHebByfQ_nc','lBcAmL8jX-Y','psDAuK8TduQ'], part='id', fields='id', limit=5)
 #pprint(videos)
 
+def comment_page_handler(content, content_raw, page_num, results_per_page, page_token):
+    print('\n\n')
+    print(page_num, '/', results_per_page, page_token, page_token)
+    pprint(content)
+    pprint(content_raw)
+    print('\n\n')
+    res = True
+    return res
+
 def get_comments_test():
     #comments = yt.get_comments('7lqVYoKiMfw')
     #save_json('comments.json', comments)
     #pprint(comments)
-    #comments = yt.get_comments('7lqVYoKiMfw', fields='nextPageToken,items(id,snippet(videoId,topLevelComment(id,snippet(authorDisplayName,textDisplay,textOriginal,publishedAt,updatedAt,viewerRating))))')
+    # comments = yt.get_comments(videoId='7lqVYoKiMfw', fields='nextPageToken,items(id,snippet(videoId,topLevelComment(id,snippet(authorDisplayName,textDisplay,textOriginal,publishedAt,updatedAt,viewerRating))))')
+
+    comments = yt.get_comments(videoId='7lqVYoKiMfw', fields='nextPageToken,items(id)', limit=7, page_handler=comment_page_handler)
+
+
     #comments = yt.get_comments(id='Uggb3EPddGJet3gCoAEC')
     #comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC')
     #comments = yt.get_comments('268a2Gyq-fc')
     #comments = yt.get_comments(id='UgyteV0exQnVVEnh7dh4AaABAg')
     #comments = yt.get_comments(id='UgyteV0exQnVVEnh7dh4AaABAg', textFormat='plainText')
-    comments = yt.get_comments(parentId='UgyteV0exQnVVEnh7dh4AaABAg')
+    #comments = yt.get_comments(parentId='UgyteV0exQnVVEnh7dh4AaABAg')
     #comments = yt.get_comments(parentId='UgwdSoJQp6IIJIaarER4AaABAg')
     #save_json('commentId.json', comments)
     #pprint(yt.result_raw)
@@ -113,8 +129,24 @@ def _result_parse_test():
     #print(res)
     pprint(res)
 
+
+def utils_truncatechars_test():
+    res = utils.truncatechars('Большой текст', 9)
+    print("utils.truncatechars('Большой текст', 9) => ", res)
+    assert utils.truncatechars('Большой текст', 9) == 'Большо...'
+    res = utils.truncatechars('Большой текст', 5)
+    print("utils.truncatechars('Большой текст', 5) => ", res)
+    assert utils.truncatechars('Большой текст', 5) == 'Бо...'
+    res = utils.truncatechars('Текст', 10)
+    print("utils.truncatechars('Текст', 10) => ", res)
+    assert utils.truncatechars('Текст', 10) == 'Текст' \
+                                               ''
+
+
 if __name__ == '__main__':
     # _get_delta_list_test()
-    #get_comments_test()    
+    get_comments_test()
+    #_result_parse_test()
+    #utils_truncatechars_test()
 
-    _result_parse_test()    
+    pass
