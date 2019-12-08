@@ -2,13 +2,16 @@ import requests
 import json
 from pprint import pprint
 from datetime import datetime, timedelta
+import time
 from dateutil.relativedelta import relativedelta
+import re
+import utils
 
 def print_log(*args, **kwargs):
     print(*args, **kwargs)
 
 def fake_download(url, pageToken):
-
+    res = {}
     if pageToken=='':
         res = {'items':[789], 'nextPageToken':'AAA'}
     elif pageToken=='AAA':
@@ -20,6 +23,22 @@ def fake_download(url, pageToken):
     print_log(url)
     return res
 
+class YoutubeItem():
+    def __init__(self, code, type, title, publishedAt, description=''):
+        self.type = type
+        self.code = code
+        self.title  = title
+        self.publishedAt = publishedAt
+        #self.channelId
+        #self.channelTitle
+        self.description = description
+        #self.raw = None
+    def __str__(self):
+        return '{} {} {} {} {}'.format(self.type, self.code, self.title, self.description, self.publishedAt)
+    def __repr__(self):
+        return '{} {:15} {:30} {:20} {}'.format(self.type, truncatechars(self.code,15), truncatechars(self.title,30), truncatechars(self.description,20), self.publishedAt)
+
+
 class YoutubeApi():
     def __init__(self, ApiKey):
         assert ApiKey != '', 'YoutubeApi: Необходимо указать KEY_API'
@@ -27,101 +46,67 @@ class YoutubeApi():
         self.result_raw = None
 
 
-    def download_json(self, url, pageToken=''):
+    def download_yt_json(self, url, pageToken=''):
         """ Загрузка json"""
         if pageToken!='':
             url += '&pageToken={}'.format(pageToken)
         
         #res = fake_download(url, pageToken)
-        
         obj = requests.get(url)
-        res = obj.json()
+        try:
+            res = obj.json()
+        except:
+            pprint(obj)
+            raise
         #pprint(res)
         return res
 
-    def _get_delta_list(self, fromdate, todate, part=1, part_by=None):
-        """ Получить разбивку дат по периодам
-            part=10 - Равномерное разбитие на 10 частей
-            part_by_day=True - Разбитие по дням
-            part_by_month - Разбитие по месяцам
-        """
-        assert part_by in (None, '', 'day', 'month', 'year')
-        #print(fromdate,todate)
-        delta_list = []
-        if part_by=='day':
-            # Первый день
-            fromdate_part_begin = fromdate 
-            todate_part_begin = min(fromdate + relativedelta(hour=23, minute=59, second=59, microsecond=0), todate)
-            delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
-            #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
-            delta = todate - fromdate
-            days = delta.days if delta.seconds==0 else delta.days+1
-            for i in range(1,days-1):
-                fromdate_part = fromdate.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=i)
-                todate_part = fromdate.replace(hour=23, minute=59, second=59, microsecond=0) + timedelta(days=i)
-                delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-            # Последний день
-            if delta_list[-1]['todate']  < todate.replace(microsecond=0):
-                fromdate_part_end = (todate + relativedelta(hour=0, minute=0, second=0)).replace(microsecond=0)
-                todate_part_end = todate.replace(microsecond=0) #+ relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
-                delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
-                #print(fromdate_part_end, '-', todate_part_end, 'END')
-
-        elif part_by=='month':
-            # Первый месяц
-            fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
-            todate_part_begin = min(fromdate + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0), todate)
-            delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
-
-            fromdate_part = todate_part_begin + timedelta(seconds=1)
-            while fromdate_part < todate.replace(hour=0,minute=0,second=0,microsecond=0):
-                #print(fromdate_part, todate.replace(hour=0,minute=0,second=0,microsecond=0))
-                todate_part = fromdate_part + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
-                delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-                fromdate_part = (fromdate_part + timedelta(days=31)).replace(day=1)
-
-            # Последний месяц
-            if delta_list[-1]['todate']  < todate.replace(microsecond=0):
-                fromdate_part_end = (todate + relativedelta(day=1, hour=0, minute=0, second=0)).replace(microsecond=0)
-                todate_part_end = todate.replace(microsecond=0) #+ relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
-                delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
-                #print(fromdate_part_end, '-', todate_part_end, 'END')
-               
-        elif part_by=='year':
-            # Первый год
-            fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
-            todate_part_begin = min(fromdate + relativedelta(month=12, day=31, hour=23, minute=59, second=59, microsecond=0), todate)
-            delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
-            #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
-            for i in range(fromdate.year+1, todate.year):
-                fromdate_part = fromdate + relativedelta(year=i, month=1, day=1, hour=0, minute=0, second=0, microsecond=0) 
-                todate_part = fromdate + relativedelta(year=i, month=12, day=31, hour=23, minute=59, second=59, microsecond=0)
-                delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-                #print(fromdate_part, '-', todate_part)
-            # Последний год
-            if delta_list[-1]['todate']  < todate.replace(microsecond=0):
-                fromdate_part_end = (todate + relativedelta(month=1, day=1, hour=0, minute=0, second=0)).replace(microsecond=0)
-                todate_part_end = todate.replace(microsecond=0)
-                delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
-                #print(fromdate_part_end, '-', todate_part_end, 'END')
-        else:
-            delta = todate - fromdate
-            delta_by_part = delta/part
-            #print('Кол-во часте:', part)
-            #print('Всего дней:', delta)
-            #print('Дней на часть:', delta_by_part)
-            for i in range(part):
-                fromdate_part = (fromdate + i*delta_by_part).replace(microsecond=0)
-                todate_part = (fromdate.replace(microsecond=0) + i*delta_by_part + delta_by_part - timedelta(seconds=1)).replace(microsecond=0)
-                delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-                #print(i, fromdate_part, '-', todate_part)
-        
-        for i in delta_list:
-            print(i['fromdate'], '-', i['todate'])
-        
-        return delta_list
-        
-        
+       
+    
+    def _result_parse(self, js):
+        res = []
+        for item in js:
+            if 'topLevelComment' in item['snippet']:
+                kind = 'youtube#commentThread'
+            elif 'kind' in item and item['kind'] == 'youtube#comment':
+                kind = 'youtube#comment'
+            elif 'kind' in item['id']:
+                kind = item['id']['kind']
+            #code, type, title, publishedAt   
+            #print(kind)            
+            obj = None
+            if kind == 'youtube#channel':
+                obj = YoutubeItem(  code=item['id']['channelId'], 
+                                    type=item['id']['kind'], 
+                                    title=item['snippet']['title'], 
+                                    publishedAt=item['snippet']['publishedAt'],
+                                    description=item['snippet']['description'],
+                                  )
+            elif kind == 'youtube#playlist':
+                obj = YoutubeItem(  code=item['id']['playlistId'], 
+                                    type=item['id']['kind'], 
+                                    title=item['snippet']['title'], 
+                                    publishedAt=item['snippet']['publishedAt'],
+                                    description=item['snippet']['description'],
+                                  )
+            elif kind == 'youtube#commentThread':
+                obj = YoutubeItem(  code=item['id'], 
+                                    type=item['snippet']['topLevelComment']['kind'], 
+                                    title=item['snippet']['topLevelComment']['snippet']['authorDisplayName'], 
+                                    publishedAt=item['snippet']['topLevelComment']['snippet']['publishedAt'], 
+                                    description=item['snippet']['topLevelComment']['snippet']['textOriginal'],
+                                  )
+            elif kind == 'youtube#comment':
+                obj = YoutubeItem(  code=item['id'], 
+                                    type=item['kind'], 
+                                    title=item['snippet']['authorDisplayName'], 
+                                    publishedAt=item['snippet']['publishedAt'],
+                                    description=item['snippet']['textOriginal'],
+                                  )
+            if obj:
+                res.append(obj)
+        return res
+    
         
     def get_channels(self, channelName, fields='*', limit=1000, order='relevance'):
         """ Поиск каналов по имени """
@@ -140,7 +125,7 @@ class YoutubeApi():
         pageToken = ''
         for i in range(0, limit, maxResults):
             #print_log(i, i+maxResults)
-            obj_json = self.download_json(url, pageToken)
+            obj_json = self.download_yt_json(url, pageToken)
             content =  obj_json
             #print_log(content)
             res.extend(content['items'])
@@ -172,8 +157,9 @@ class YoutubeApi():
         pageToken = ''
         for i in range(0, limit, maxResults):
             #print_log(i, i+maxResults)
-            obj_json = self.download_json(url, pageToken)
+            obj_json = self.download_yt_json(url, pageToken)
             content =  obj_json
+            #pprint(content)
             #print_log(content)
             res.extend(content['items'])
             if 'nextPageToken' in content:
@@ -233,7 +219,7 @@ class YoutubeApi():
             ids = ','.join(videoIDs[i:i+maxResults])
             #print(ids)
             url = 'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}&maxResults={maxResults}&key={API_KEY}'.format(**{'part':part,'fields':fields,'ids':ids,'maxResults':maxResults,'API_KEY':self.ApiKey})
-            obj = self.download_json(url)
+            obj = self.download_yt_json(url)
             #pprint(obj)
             res.extend(obj['items'])
             if (i+maxResults)>limit and limit>0:
@@ -263,17 +249,18 @@ class YoutubeApi():
         if limit<100:
             maxResults = limit
         #fields = '*'
+        url = ''
         if videoId:
-            url='https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&fields={fields}&maxResults={maxResults}&videoId={videoId}&textFormat={textFormat}&key={API_KEY}'.format(**{'fields':fields, 'videoId':videoId, 'maxResults':maxResults, 'textFormat':textFormat, 'API_KEY':self.ApiKey})
+            url='https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&fields={fields}&maxResults={maxResults}&videoId={videoId}&textFormat={textFormat}&order={order}&key={API_KEY}'.format(**{'fields':fields, 'videoId':videoId, 'maxResults':maxResults, 'textFormat':textFormat, 'order':order, 'API_KEY':self.ApiKey})
         elif id:
-            url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&id={id}&textFormat={textFormat}&key={API_KEY}'.format(**{'fields':fields, 'id':id, 'maxResults':maxResults, 'textFormat':textFormat, 'API_KEY':self.ApiKey})
-        else:
-            url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&parentId={parentId}&textFormat={textFormat}&key={API_KEY}'.format(**{'fields':fields, 'parentId':parentId, 'maxResults':maxResults, 'textFormat':textFormat, 'API_KEY':self.ApiKey})
+            url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&id={id}&textFormat={textFormat}&order={order}&key={API_KEY}'.format(**{'fields':fields, 'id':id, 'maxResults':maxResults, 'textFormat':textFormat, 'order':order, 'API_KEY':self.ApiKey})
+        elif parentId:
+            url='https://www.googleapis.com/youtube/v3/comments?part=snippet&fields={fields}&maxResults={maxResults}&parentId={parentId}&textFormat={textFormat}&order={order}&key={API_KEY}'.format(**{'fields':fields, 'parentId':parentId, 'maxResults':maxResults, 'textFormat':textFormat, 'order':order, 'API_KEY':self.ApiKey})
             
         res = []
         pageToken = ''
         for i in range(0, limit, maxResults):
-            obj_json = self.download_json(url, pageToken)
+            obj_json = self.download_yt_json(url, pageToken)
             content =  obj_json
             res.extend(content['items'])
             if 'nextPageToken' in content:
@@ -284,19 +271,83 @@ class YoutubeApi():
         res = res[:limit]        
         return res
 
+    def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=1000, part='id,snippet,contentDetails', fields='*', order='date', fullInfo=False):
+        # maxResults>=1 and maxResults<=50
+        assert channelId!=0 or playlistId!=0
+    
+        # channelId = 'UCSZ69a-0I1RRdNssyttBFcA'
+        # fields = '*'
+        # fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt,channelTitle,channelId))'
+        if not fields:
+            fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt))'
+        maxResults = 50 # Количество объектов на 1 запрос. Максимум = 50
+        # maxIteration = 20 # Максимальное количество итераций для получения данных по 50 объектов. Максимум 20.
 
-    def get_search(self, q='', channelId='', playlistId='', order='date'):
-        res = []
+        published = ''
+        if fromdate:
+            if type(fromdate)==str:
+                published += f'&publishedAfter={fromdate}' #2019-01-01T00:00:00Z
+            else:
+                published += '&publishedAfter={}Z'.format(fromdate.replace(microsecond=0).isoformat(sep='T'))
+        if todate:
+            if type(todate)==str:
+                published += f'&publishedBefore={todate}' #2019-12-31T23:59:59Z
+            else:
+                published += '&publishedBefore={}Z'.format(todate.replace(microsecond=0).isoformat(sep='T'))
+
         url = ''
-        pprint(url)
+        if playlistId:
+            # part = 'id,contentDetails,snippet' #contentDetails: 2; id: 0; snippet: 2; status: 2 (+1)
+            url = 'https://www.googleapis.com/youtube/v3/playlistItems?part={part}&fields={fields}' \
+                  '&playlistId={playlistId}&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'playlistId': playlistId, 'maxResults': maxResults, 'API_KEY': self.ApiKey})
+
+            # Параметр videoId в playlistItems?????????????????????
+        elif channelId:
+            url = 'https://www.googleapis.com/youtube/v3/search?type=video&part=id,snippet&fields={fields}' \
+                  '&channelId={channelId}&maxResults={maxResults}&order={order}{published}&key={API_KEY}'.format(**{'fields': fields, 'channelId': channelId, 'maxResults': maxResults, 'order': order, 'published': published, 'API_KEY': self.ApiKey})
+
+        res = []
+        pageToken = ''
+        
+        for i in range(0, limit, maxResults):
+            content = self.download_yt_json(url, pageToken)
+            #url_token = '{}&pageToken={}'.format(url, pageToken)
+            #print(i)
+            #print(url_token)
+            #obj = requests.get(url_token)
+            #content =  obj.json()
+            if fullInfo:
+                ids = [x['id']['videoId'] for x in content['items']]
+                videos = self.get_videos_info(ids, fields=fields, part=part)
+                #pprint(ids)
+                pprint(videos)
+                res.extend(videos)
+            else:
+                res.extend(content['items'])
+
+            if 'nextPageToken' in content:
+                pageToken = content['nextPageToken']
+                time.sleep(1)
+            else:
+                break
+        self.result_raw = res
+        res = res[:limit]
         return res
     
 
         
 if __name__ == '__main__':
+    from pprint import pprint
     yt = YoutubeApi('123')
-    #yt._get_delta_list(dt1,dt2,part_by_day=True, part_by_month=False)
-    #yt._get_delta_list(dt1,dt2, part=10, part_by_day=False, part_by_month=False)
+    #yt._result_parse()
+    #dt1 = datetime(2019,11,3,10,54)
+    #dt2 = datetime.now()
+    #d1 = utils.date_period_into_parts(dt1, dt2, part_by='day')
+    #pprint(d1)
+    #d2 = utils.date_period_into_parts(dt1, dt2, part=10, part_by='month')
+    #pprint(d2)
+    #d3 = utils.date_period_into_parts(dt1, dt2, part=5)
+    #pprint(d3)
     #yt.get_playlists('')
     #playlists = yt.get_playlists('UCSZ69a-0I1RRdNssyttBFcA')
     #playlists = yt.get_playlists(channelId='UC4iAuuvx9hJilx4QOcd8V6A')
@@ -309,5 +360,11 @@ if __name__ == '__main__':
     
     #videos = yt.get_videos(ids)
     #videos = yt.get_videos([str(x) for x in range(0,125,1)])
-
-    
+    #print(utils.ytdate_to_str('PT1H24S'))
+    #print(utils.ytdate_to_sec('PT1H24S'))
+    #print(utils.ytdate_to_timedelta('P10DT2H24S'))
+    #yt.get_videos(playlistId='123ABC')
+    #yt.get_videos(channelId='123ABC')
+    #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,12,1), todate=datetime(2019,12,8))
+    #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=3, fullInfo=True)
+    #pprint(videos)
