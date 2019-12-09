@@ -151,7 +151,23 @@ class YoutubeApi():
                 res.append(obj)
         return res
     
-        
+    def _correct_part(self, part, fields):
+        """
+        Ф-ция убирает из part неиспользуемые поля
+        :param part:
+        :param fields:
+        :return:
+        """
+        res = part
+        if fields != '*':
+            part_list = part.split(',')
+            part_new = []
+            for p in part_list:
+                if p in fields or p == 'id':
+                    part_new.append(p)
+            res = ','.join(part_new)
+        return res
+
     def get_channels(self, channelName, fields='*', limit=1000, order='relevance', page_handler=None):
         """ Поиск каналов по имени """
         assert order in ('date','rating','relevance','title','videoCount','viewCount'), 'get_playlists: Неправильный параметр order: {}'.format(order)
@@ -256,13 +272,8 @@ class YoutubeApi():
         elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
             fields = 'nextPageToken,items({})'.format(fields)
             # Если в fields переданы поля, убираем из part неиспользуемые
-            part_list = part.split(',')
-            part_new = []
-            for p in part_list:
-                if p in fields:
-                    part_new.append(p)
-            part = ','.join(part_new)
-            
+            part = self._correct_part(part, fields)
+
         # Если videoIDs не является списком, преобразуем в список
         if type(videoIDs) == str:
             videoIDs = videoIDs.split(',')
@@ -347,8 +358,24 @@ class YoutubeApi():
         # channelId = 'UCSZ69a-0I1RRdNssyttBFcA'
         # fields = '*'
         # fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt,channelTitle,channelId))'
-        if not fields:
-            fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt))'
+
+        #if fields in ('','*'):
+        #    fields = '*'
+        #elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+        #    fields = 'nextPageToken,pageInfo,items({})'.format(fields)
+        #if not fields:
+        if fullInfo:
+            #fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt))'
+            fields_main = 'nextPageToken,pageInfo,items(id)' #.format(fields)
+        else:
+            if fields in ('','*'):
+                fields_main = '*'
+            elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+                fields_main = 'nextPageToken,pageInfo,items({})'.format(fields)
+            else:
+                fields_main = fields # Если передали nextPageToken, то вставляем без изменений
+
+
         maxResults = 50 # Количество объектов на 1 запрос. Максимум = 50
         # maxIteration = 20 # Максимальное количество итераций для получения данных по 50 объектов. Максимум 20.
 
@@ -364,16 +391,19 @@ class YoutubeApi():
             else:
                 published += '&publishedBefore={}Z'.format(todate.replace(microsecond=0).isoformat(sep='T'))
 
-        url = ''
         if playlistId:
             # part = 'id,contentDetails,snippet' #contentDetails: 2; id: 0; snippet: 2; status: 2 (+1)
             url = 'https://www.googleapis.com/youtube/v3/playlistItems?part={part}&fields={fields}' \
-                  '&playlistId={playlistId}&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'playlistId': playlistId, 'maxResults': maxResults, 'API_KEY': self.ApiKey})
+                  '&playlistId={playlistId}&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields_main, 'playlistId': playlistId, 'maxResults': maxResults, 'API_KEY': self.ApiKey})
 
             # Параметр videoId в playlistItems?????????????????????
         elif channelId:
             url = 'https://www.googleapis.com/youtube/v3/search?type=video&part=id,snippet&fields={fields}' \
-                  '&channelId={channelId}&maxResults={maxResults}&order={order}{published}&key={API_KEY}'.format(**{'fields': fields, 'channelId': channelId, 'maxResults': maxResults, 'order': order, 'published': published, 'API_KEY': self.ApiKey})
+                  '&channelId={channelId}&maxResults={maxResults}&order={order}{published}&key={API_KEY}'.format(**{'fields': fields_main, 'channelId': channelId, 'maxResults': maxResults, 'order': order, 'published': published, 'API_KEY': self.ApiKey})
+        else:
+            url = 'https://www.googleapis.com/youtube/v3/search?type=video&part=id,snippet&fields={fields}' \
+                  '&q={q}&maxResults={maxResults}&order={order}{published}&key={API_KEY}'.format(**{'fields': fields_main, 'q': q, 'maxResults': maxResults, 'order': order, 'published': published, 'API_KEY': self.ApiKey})
+
 
         res = []
         pageToken = ''
@@ -386,8 +416,16 @@ class YoutubeApi():
             #obj = requests.get(url_token)
             #content =  obj.json()
             if fullInfo:
+                if fields in ('','*'):
+                    fields_full = '*'
+                elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+                    fields_full = 'nextPageToken,pageInfo,items({})'.format(fields)
+
+                # Если в fields переданы поля, убираем из part неиспользуемые
+                part_new = self._correct_part(part, fields_full)
+
                 ids = [x['id']['videoId'] for x in content['items']]
-                videos = self.get_videos_info(ids, fields=fields, part=part)
+                videos = self.get_videos_info(ids, fields=fields_full, part=part_new)
                 #pprint(ids)
                 #pprint(videos)
                 res.extend(videos)
@@ -408,10 +446,24 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
+    def get_videos_partion(self, fromdate, todate, q='', channelId='', playlistId='', limit=1000,
+                           part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None,
+                           partion_by=1):
+        datepart_list = utils.date_period_into_parts(fromdate, todate, partion_by=partion_by)
+        res = []
+        for datepart in datepart_list:
+            p = self.get_videos(q=q, channelId=channelId, playlistId=playlistId, fromdate=datepart['fromdate'],
+                                todate=datepart['todate'], limit=limit, part=part, fields=fields, order=order,
+                                fullInfo=fullInfo, page_handler=page_handler)
+            res.extend(p)
+        return res
+
+
 
 if __name__ == '__main__':
     from pprint import pprint
-    yt = YoutubeApi('123')
+    from datetime import datetime
+    yt = YoutubeApi('')
     #data = yt.get_comments(videoId='SMnI97CI-G8', fields='*', limit=10, order='relevance', textFormat='html')
     #pprint(data)
 
@@ -445,3 +497,28 @@ if __name__ == '__main__':
     #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,12,1), todate=datetime(2019,12,8))
     #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=3, fullInfo=True)
     #pprint(videos)
+    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,10,8), todate=datetime(2019,12,2), partion_by='month')
+    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,11,29,8,30), todate=datetime(2019,12,2,21,0), partion_by='day')
+    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,10,29,8,30), todate=datetime(2019,2,2,21,0), partion_by='month')
+    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,12,29,8,30), todate=datetime(2019,1,2,21,0), partion_by='day')
+    #print(res)
+
+    # fields = 'id,snippet(title,publishedAt)'
+    # fields = '*'
+    # res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', fromdate=None, todate=None, limit=5,
+    #                    part='id,snippet', fields=fields, order='date', fullInfo=False, page_handler=None)
+    #fields = 'id,snippet(title,publishedAt),statistics,contentDetails'
+    #res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', fromdate=None, todate=None, limit=5,
+    #                    part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=None)
+
+    #res = yt.get_videos(q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', fromdate=None, todate=None, limit=5,
+    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None)
+    #res = yt.get_videos_partion(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
+    #                   part='id,snippet,contentDetails', fields='*', order='date', fullInfo=True, page_handler=None,
+    #                   partion_by=3)
+    #pprint(res)
+    #res = yt.get_videos(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
+    #                   part='id,snippet,statistics,contentDetails', fields='id,contentDetails,snippet(title)', order='date', fullInfo=True, page_handler=None
+    #                   )
+    #pprint(res)
+    # print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
