@@ -44,3 +44,6 @@ comments = yt.get_comments(id='Uggb3EPddGJet3gCoAEC')
 comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC')    
 ```
 
+#### Калькулятор квот:
+[https://developers.google.com/youtube/v3/determine_quota_cost](https://developers.google.com/youtube/v3/determine_quota_cost)
+

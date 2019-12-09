@@ -351,7 +351,7 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
-    def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=1000, part='id,snippet,contentDetails', fields='*', order='date', fullInfo=False, page_handler=None):
+    def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=1000, part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None):
         # maxResults>=1 and maxResults<=50
         assert channelId != 0 or playlistId != 0
     
@@ -359,11 +359,6 @@ class YoutubeApi():
         # fields = '*'
         # fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt,channelTitle,channelId))'
 
-        #if fields in ('','*'):
-        #    fields = '*'
-        #elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
-        #    fields = 'nextPageToken,pageInfo,items({})'.format(fields)
-        #if not fields:
         if fullInfo:
             #fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt))'
             fields_main = 'nextPageToken,pageInfo,items(id)' #.format(fields)
@@ -393,9 +388,9 @@ class YoutubeApi():
 
         if playlistId:
             # part = 'id,contentDetails,snippet' #contentDetails: 2; id: 0; snippet: 2; status: 2 (+1)
-            url = 'https://www.googleapis.com/youtube/v3/playlistItems?part={part}&fields={fields}' \
+            url = 'https://www.googleapis.com/youtube/v3/playlistItems?part=id,snippet&fields=nextPageToken,pageInfo,items(id,snippet)' \
+                  '' \
                   '&playlistId={playlistId}&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields_main, 'playlistId': playlistId, 'maxResults': maxResults, 'API_KEY': self.ApiKey})
-
             # Параметр videoId в playlistItems?????????????????????
         elif channelId:
             url = 'https://www.googleapis.com/youtube/v3/search?type=video&part=id,snippet&fields={fields}' \
@@ -424,7 +419,10 @@ class YoutubeApi():
                 # Если в fields переданы поля, убираем из part неиспользуемые
                 part_new = self._correct_part(part, fields_full)
 
-                ids = [x['id']['videoId'] for x in content['items']]
+                if playlistId:
+                    ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
+                else:
+                    ids = [x['id']['videoId'] for x in content['items']]
                 videos = self.get_videos_info(ids, fields=fields_full, part=part_new)
                 #pprint(ids)
                 #pprint(videos)
@@ -513,6 +511,8 @@ if __name__ == '__main__':
 
     #res = yt.get_videos(q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', fromdate=None, todate=None, limit=5,
     #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None)
+    #res = yt.get_videos(q='', channelId='', playlistId='PLK-qRho50lIsxy-8B3FeAdKjtajY6XB06', fromdate=None, todate=None, limit=5,
+    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=True, page_handler=None)
     #res = yt.get_videos_partion(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
     #                   part='id,snippet,contentDetails', fields='*', order='date', fullInfo=True, page_handler=None,
     #                   partion_by=3)
@@ -520,5 +520,5 @@ if __name__ == '__main__':
     #res = yt.get_videos(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
     #                   part='id,snippet,statistics,contentDetails', fields='id,contentDetails,snippet(title)', order='date', fullInfo=True, page_handler=None
     #                   )
-    #pprint(res)
+    pprint(res)
     # print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
