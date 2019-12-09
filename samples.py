@@ -11,8 +11,9 @@ from pprint import pprint
 import os
 import json
 
-
 os.chdir(os.path.dirname(__file__)) # Работаем в текущем каталоге
+
+yt = YoutubeApi(API_KEY)
 
 def save_json(filename, content, format=True):
     """ Сохранение json данных в файл """
@@ -28,7 +29,6 @@ def load_json(filename):
 
 
 
-yt = YoutubeApi(API_KEY)
 
 def get_channels_test():
     # Получение каналов по названию
@@ -143,14 +143,30 @@ def utils_truncatechars_test():
     assert utils.truncatechars('Текст', 10) == 'Текст' \
                                                ''
 def download_json_test():
+    yt = YoutubeApi(API_KEY)
     fields = '*'
     maxResults = 5
     order = 'date'
     q = 'квн'
-    url = 'https://www.googleapis.com/youtube/v3/search?type=channel&part=snippet&fields={fields}&maxResults={max_results}&order={order}&q={q}&key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})    
-    obj = utils.download_json(url)
+    # Ошибок нет
+    # url = 'https://www.googleapis.com/youtube/v3/search?type=channel&part=id&fields={fields}&maxResults={max_results}&order={order}&q={q}&key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})
+    # Ошибка при передачи part
+    # url = 'https://www.googleapis.com/youtube/v3/search?type=channel&part=@@@id&fields={fields}&maxResults={max_results}&order={order}&q={q}&key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})
+    # Ошибка при передачи полей fields
+    # url = 'https://www.googleapis.com/youtube/v3/search?type=channel&part=id&fields=@@@{fields}&maxResults={max_results}&order={order}&q={q}&key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})
+    # Ошибка при передаче ключа API_KEY
+    # url = 'https://www.googleapis.com/youtube/v3/search?type=channel&part=id&fields={fields}&maxResults={max_results}&order={order}&q={q}&key=@@@{API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})
+    # Не передан параметр part
+    # url = 'https://www.googleapis.com/youtube/v3/search?key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})
+    # Нет страницы search111 404
+    #url = 'https://www.googleapis.com/youtube/v3/search111key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})
+    # Ошибка в имени сайта
+    # url = 'https://www.googleapis1.com/youtube/v3/search?type=channel&part=id&fields={fields}&maxResults={max_results}&order={order}&q={q}&key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})
+
+    obj = yt.download_yt_json(url)
+
     pprint(obj)
-    
+
     # Возможные Ошибки:
     # fields='1*'
     err = {'error': {'code': 400,
@@ -182,18 +198,88 @@ def download_json_test():
                 'message': "Invalid string value: 'date,max'. Allowed values: "
                       '[date, rating, relevance, title, videocount, '
                       'viewcount]'}}  
-    #
+    # Неправильный ключ API_KEY
     err4 = {'error': {'code': 400,
                       'errors': [{'domain': 'usageLimits',
                                   'message': 'Bad Request',
                                   'reason': 'keyInvalid'}],
                       'message': 'Bad Request'}}
-                      
+    # Превышена квота
+    err5 = {
+        'error': {
+            'errors': [{
+                'domain': 'youtube.quota',
+                'reason': 'quotaExceeded',
+                'message': 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.'
+            }
+            ],
+            'code': 403,
+            'message': 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.'
+        }
+    }
+
+def page_handler(content, content_raw, page_num, results_per_page, url, page_token):
+    pass
+    #fn = 'log/{}_{}_{}.json'.format(url.replace('https://','').replace('www.googleapis.com/youtube/v3/','').replace('?','_'), page_num, page_token)
+    #save_json(fn, content_raw)
+
+def get_videos_test():
+    from datetime import datetime
+    #videos = yt.get_videos(ids)
+    #videos = yt.get_videos([str(x) for x in range(0,125,1)])
+    #print(utils.ytdate_to_str('PT1H24S'))
+    #print(utils.ytdate_to_sec('PT1H24S'))
+    #print(utils.ytdate_to_timedelta('P10DT2H24S'))
+    #yt.get_videos(playlistId='123ABC')
+    #yt.get_videos(channelId='123ABC')
+    #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,12,1), todate=datetime(2019,12,8))
+    #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=3, fullInfo=True)
+    #pprint(videos)
+    res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', fromdate=datetime(2011,12,1), todate=datetime(2012,1,9), partion_by='month', fullInfo=True, page_handler=page_handler) #kvn
+    save_json('kvn2019-12-09.json', res)
+    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,11,29,8,30), todate=datetime(2019,12,2,21,0), partion_by='day')
+    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,10,29,8,30), todate=datetime(2019,2,2,21,0), partion_by='month')
+    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,12,29,8,30), todate=datetime(2019,1,2,21,0), partion_by='day')
+    #print(res)
+
+    # fields = 'id,snippet(title,publishedAt)'
+    # fields = '*'
+    # res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', fromdate=None, todate=None, limit=5,
+    #                    part='id,snippet', fields=fields, order='date', fullInfo=False, page_handler=None)
+    #fields = 'id,snippet(title,publishedAt),statistics,contentDetails'
+    #fields = 'id,snippet(title,publishedAt),contentDetails'
+    #fields='*'
+    #res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', limit=1000,
+    #                    part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=False, page_handler=page_handler)
+    #res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', limit=1000,
+    #                    part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=False, page_handler=page_handler)
+    #save_json('predelin.json',res)
+
+    #res = yt.get_videos(q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', fromdate=None, todate=None, limit=5,
+    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None)
+    #res = yt.get_videos(q='', channelId='', playlistId='PLK-qRho50lIsxy-8B3FeAdKjtajY6XB06', fromdate=None, todate=None, limit=5,
+    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=True, page_handler=None)
+
+    #res = yt.get_videos_partion(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
+    #                   part='id,snippet,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=None,
+    #                   partion_by=3)
+
+    #res = yt.get_videos_partion(fromdate=datetime(2019,1,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
+    #                   part='id,snippet,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=None,
+    #                   partion_by='month')
+
+    #res = yt.get_videos(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
+    #                   part='id,snippet,statistics,contentDetails', fields='id,contentDetails,snippet(title)', order='date', fullInfo=True, page_handler=None
+    #                   )
+    pprint(res)
+    # print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
+    pass
+
 if __name__ == '__main__':
     # _get_delta_list_test()
     #get_comments_test()
     #_result_parse_test()
     #utils_truncatechars_test()
-    download_json_test()
-    
+    #download_json_test()
+    get_videos_test()
     pass

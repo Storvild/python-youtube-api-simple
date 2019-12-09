@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 import time
 from dateutil.relativedelta import relativedelta
 import re
-#from . import utils
-import utils
+from . import utils
+#import utils
 
 def print_log(*args, **kwargs):
     print(*args, **kwargs)
@@ -191,7 +191,7 @@ class YoutubeApi():
             res.extend(content['items'])
 
             if page_handler:
-                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token=pageToken)
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, url=url, page_token=pageToken)
                 if do_continue is False:
                     break
 
@@ -229,7 +229,7 @@ class YoutubeApi():
             res.extend(content['items'])
 
             if page_handler:
-                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token=pageToken)
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, url=url, page_token=pageToken)
                 if do_continue is False:
                     break
 
@@ -290,7 +290,7 @@ class YoutubeApi():
             res.extend(content['items'])
             
             if page_handler:
-                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token='')
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, url=url, page_token='')
                 if do_continue is False:
                     break
 
@@ -339,7 +339,7 @@ class YoutubeApi():
             res.extend(content['items'])
 
             if page_handler:
-                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token=pageToken)
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, url=url, page_token=pageToken)
                 if do_continue is False:
                     break
 
@@ -369,7 +369,8 @@ class YoutubeApi():
                 fields_main = 'nextPageToken,pageInfo,items({})'.format(fields)
             else:
                 fields_main = fields # Если передали nextPageToken, то вставляем без изменений
-
+            #if 'contentDetails' in fields_main or 'statistics' in fields_main:
+            #    raise Exception('get_videos: contantDetails и statistics не допускаются в fields')
 
         maxResults = 50 # Количество объектов на 1 запрос. Максимум = 50
         # maxIteration = 20 # Максимальное количество итераций для получения данных по 50 объектов. Максимум 20.
@@ -427,11 +428,15 @@ class YoutubeApi():
                 #pprint(ids)
                 #pprint(videos)
                 res.extend(videos)
+                content_page = videos
+                content_raw = videos
             else:
                 res.extend(content['items'])
+                content_page = content['items']
+                content_raw = content
 
             if page_handler:
-                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token=pageToken)
+                do_continue = page_handler(content=content_page, content_raw=content_raw, page_num=i, results_per_page=maxResults, url=url, page_token=pageToken)
                 if do_continue is False:
                     break
 
@@ -450,8 +455,8 @@ class YoutubeApi():
         datepart_list = utils.date_period_into_parts(fromdate, todate, partion_by=partion_by)
         res = []
         for datepart in datepart_list:
-            p = self.get_videos(q=q, channelId=channelId, playlistId=playlistId, fromdate=datepart['fromdate'],
-                                todate=datepart['todate'], limit=limit, part=part, fields=fields, order=order,
+            p = self.get_videos(q=q, channelId=channelId, playlistId=playlistId, limit=limit, part=part, fields=fields,
+                                fromdate=datepart['fromdate'], todate=datepart['todate'],  order=order,
                                 fullInfo=fullInfo, page_handler=page_handler)
             res.extend(p)
         return res
@@ -520,5 +525,5 @@ if __name__ == '__main__':
     #res = yt.get_videos(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
     #                   part='id,snippet,statistics,contentDetails', fields='id,contentDetails,snippet(title)', order='date', fullInfo=True, page_handler=None
     #                   )
-    pprint(res)
+    #pprint(res)
     # print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
