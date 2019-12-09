@@ -1,5 +1,6 @@
 from youtube_api.youtube_api_v3 import YoutubeApi
 from youtube_api import utils
+#import youtube_api.utils
 
 try:
     from settings import API_KEY
@@ -62,7 +63,7 @@ def get_playlists():
 #videos = yt.get_videos_info(['7lqVYoKiMfw','7LeO_r8_L3k','_-pPLzyplS0','4ZMv35U9oYw','MHebByfQ_nc','lBcAmL8jX-Y','psDAuK8TduQ'], part='id', fields='id', limit=5)
 #pprint(videos)
 
-def comment_page_handler(content, content_raw, page_num, results_per_page, page_token):
+def comments_page_handler(content, content_raw, page_num, results_per_page, page_token):
     print('\n\n')
     print(page_num, '/', results_per_page, page_token, page_token)
     pprint(content)
@@ -77,8 +78,8 @@ def get_comments_test():
     #pprint(comments)
     # comments = yt.get_comments(videoId='7lqVYoKiMfw', fields='nextPageToken,items(id,snippet(videoId,topLevelComment(id,snippet(authorDisplayName,textDisplay,textOriginal,publishedAt,updatedAt,viewerRating))))')
 
-    comments = yt.get_comments(videoId='7lqVYoKiMfw', fields='nextPageToken,items(id)', limit=7, page_handler=comment_page_handler)
-
+    #comments = yt.get_comments(videoId='7lqVYoKiMfw', fields='nextPageToken,items(id)', limit=150, page_handler=comments_page_handler)
+    comments = yt.get_comments(videoId='SMnI97CI-G8', fields='id,*', limit=10, page_handler=comments_page_handler, textFormat='html')
 
     #comments = yt.get_comments(id='Uggb3EPddGJet3gCoAEC')
     #comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC')
@@ -90,7 +91,7 @@ def get_comments_test():
     #save_json('commentId.json', comments)
     #pprint(yt.result_raw)
     pprint(comments)
-    
+
 
 def _get_delta_list_test():
     from datetime import datetime
@@ -141,12 +142,58 @@ def utils_truncatechars_test():
     print("utils.truncatechars('Текст', 10) => ", res)
     assert utils.truncatechars('Текст', 10) == 'Текст' \
                                                ''
-
-
+def download_json_test():
+    fields = '*'
+    maxResults = 5
+    order = 'date'
+    q = 'квн'
+    url = 'https://www.googleapis.com/youtube/v3/search?type=channel&part=snippet&fields={fields}&maxResults={max_results}&order={order}&q={q}&key={API_KEY}'.format(**{'fields':fields,'max_results':maxResults,'order':order,'q':q,'API_KEY':API_KEY})    
+    obj = utils.download_json(url)
+    pprint(obj)
+    
+    # Возможные Ошибки:
+    # fields='1*'
+    err = {'error': {'code': 400,
+           'errors': [{'domain': 'global',
+                       'location': 'fields',
+                       'locationType': 'parameter',
+                       'message': 'Invalid field selection 1*',
+                       'reason': 'invalidParameter'}],
+           'message': 'Invalid field selection 1*'}}
+    # maxResults = 100
+    err2 = {'error': {'code': 400,
+               'errors': [{'domain': 'global',
+                       'location': 'maxResults',
+                       'locationType': 'parameter',
+                       'message': "Invalid value '100'. Values must be within "
+                                  'the range: [0, 50]',
+                       'reason': 'invalidParameter'}],
+                'message': "Invalid value '100'. Values must be within the range: "
+                      '[0, 50]'}}
+    # order = 'date,max'            
+    err3 = {'error': {'code': 400,
+                'errors': [{'domain': 'global',
+                       'location': 'order',
+                       'locationType': 'parameter',
+                       'message': "Invalid string value: 'date,max'. Allowed "
+                                  'values: [date, rating, relevance, title, '
+                                  'videocount, viewcount]',
+                       'reason': 'invalidParameter'}],
+                'message': "Invalid string value: 'date,max'. Allowed values: "
+                      '[date, rating, relevance, title, videocount, '
+                      'viewcount]'}}  
+    #
+    err4 = {'error': {'code': 400,
+                      'errors': [{'domain': 'usageLimits',
+                                  'message': 'Bad Request',
+                                  'reason': 'keyInvalid'}],
+                      'message': 'Bad Request'}}
+                      
 if __name__ == '__main__':
     # _get_delta_list_test()
-    get_comments_test()
+    #get_comments_test()
     #_result_parse_test()
     #utils_truncatechars_test()
-
+    download_json_test()
+    
     pass

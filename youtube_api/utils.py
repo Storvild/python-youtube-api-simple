@@ -28,7 +28,6 @@ class DownloadException(Exception):
         self.response_url = response_url
         self.response_content = response_content
         self.response_encoding = response_encoding
-
     def __str__(self):
         return 'Ошибка получения Json-данных: {}\nSTATUS: {}\nTEXT: {}\nURL: {}\nENCODING: {}'.format(self.message, self.response_status, self.response_content, self.response_url, self.response_encoding)
 
@@ -161,27 +160,25 @@ def download_json(url):
     return res
 
 
-def date_period_into_parts(fromdate, todate, part=1, part_by=None):
+def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=None
     """
     Получить разбивку дат по периодам
     :param fromdate: Дата начала периода
     :param todate:  Дата окончания периода
-    :param part:    Количество частей на которые необходимо поделить период
-    :param part_by: Делить по дням, месяцам, годам 'year|month|day'
+    :param partion_by: Количество частей на которые необходимо поделить период или
+                        деление по дням, месяцам, годам 'year|month|day'
     :return: Список словарей с периодом fromdate, todate
     :type fromdate: datetime.datetime
     :type todate: datetime.datetime
-    :type part: int
-    :type part_by: str
     :rtype: list
 
     Пример:
         from datetime import datetime as dt
-        date_period_into_parts(dt(2019,8,1,10,31), dt(2019,12,4,8,18), part=3) # Разбить период на 3 части
+        date_period_into_parts(dt(2019,8,1,10,31), dt(2019,12,4,8,18), partion_by=3) # Разбить период на 3 части
         [{'fromdate': datetime.datetime(2019, 8, 1, 10, 31),      'todate': datetime.datetime(2019, 9, 12, 1, 46, 39)},
          {'fromdate': datetime.datetime(2019, 9, 12, 1, 46, 40),  'todate': datetime.datetime(2019, 10, 23, 17, 2, 19)},
          {'fromdate': datetime.datetime(2019, 10, 23, 17, 2, 20), 'todate': datetime.datetime(2019, 12, 4, 8, 17, 59)}]
-        date_period_into_parts(dt(2019, 8, 6, 10, 31), dt(2019, 10, 4, 8, 18), part_by='month') # Разбить по месяцам
+        date_period_into_parts(dt(2019, 8, 6, 10, 31), dt(2019, 10, 4, 8, 18), partion_by='month') # Разбить по месяцам
         2019-08-06 10:31:00 - 2019-08-31 23:59:59
         2019-09-01 00:00:00 - 2019-09-30 23:59:59
         2019-10-01 00:00:00 - 2019-10-31 23:59:59
@@ -189,10 +186,12 @@ def date_period_into_parts(fromdate, todate, part=1, part_by=None):
 
     from datetime import timedelta
     from dateutil.relativedelta import relativedelta
-    assert part_by in (None, '', 'day', 'month', 'year')
+    #assert partion_by in (None, '', 'day', 'month', 'year')
+    assert partion_by != 0
+
     #print(fromdate,todate)
     delta_list = []
-    if part_by=='day':
+    if partion_by=='day':
         # Первый день
         fromdate_part_begin = fromdate 
         todate_part_begin = min(fromdate + relativedelta(hour=23, minute=59, second=59, microsecond=0), todate)
@@ -211,14 +210,14 @@ def date_period_into_parts(fromdate, todate, part=1, part_by=None):
             delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
             #print(fromdate_part_end, '-', todate_part_end, 'END')
 
-    elif part_by=='month':
+    elif partion_by=='month':
         # Первый месяц
         fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
         todate_part_begin = min(fromdate + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0), todate)
         delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
 
         fromdate_part = todate_part_begin + timedelta(seconds=1)
-        while fromdate_part < todate.replace(hour=0,minute=0,second=0,microsecond=0):
+        while fromdate_part < todate.replace(day=1,hour=0,minute=0,second=0,microsecond=0):
             #print(fromdate_part, todate.replace(hour=0,minute=0,second=0,microsecond=0))
             todate_part = fromdate_part + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
             delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
@@ -231,7 +230,7 @@ def date_period_into_parts(fromdate, todate, part=1, part_by=None):
             delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
             #print(fromdate_part_end, '-', todate_part_end, 'END')
            
-    elif part_by=='year':
+    elif partion_by=='year':
         # Первый год
         fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
         todate_part_begin = min(fromdate + relativedelta(month=12, day=31, hour=23, minute=59, second=59, microsecond=0), todate)
@@ -248,13 +247,13 @@ def date_period_into_parts(fromdate, todate, part=1, part_by=None):
             todate_part_end = todate.replace(microsecond=0)
             delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
             #print(fromdate_part_end, '-', todate_part_end, 'END')
-    else:
+    elif type(partion_by) == int and partion_by>0:
         delta = todate - fromdate
-        delta_by_part = delta/part
+        delta_by_part = delta/partion_by
         #print('Кол-во часте:', part)
         #print('Всего дней:', delta)
         #print('Дней на часть:', delta_by_part)
-        for i in range(part):
+        for i in range(partion_by):
             fromdate_part = (fromdate + i*delta_by_part).replace(microsecond=0)
             todate_part = (fromdate.replace(microsecond=0) + i*delta_by_part + delta_by_part - timedelta(seconds=1)).replace(microsecond=0)
             delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
@@ -305,11 +304,11 @@ if __name__ == '__main__':
     # save_json('my_test.json', {'id':'УИ','fullname':'Тест', 'items':[1,2,3]})
     # save_json('my_test_format.json', {'id':'УИ','fullname':'Тест', 'items':[1,2,3]}, format=True)
     # obj = load_json('my_test.json'); pprint(obj)
-    # parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now(), part=3)
+    # parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now(), partion_by=3)
     # parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now())
-    # arts = date_period_into_parts(dt(2019,8,1,10,31), dt(2019,12,4,8,18), part=3)
+    # parts = date_period_into_parts(dt(2019,8,1,10,31), dt(2019,12,4,8,18), partion_by='month')
     # pprint(parts)
-    # parts = date_period_into_parts(dt(2019, 8, 6, 10, 31), dt(2019, 10, 4, 8, 18), part_by='month')
+    # parts = date_period_into_parts(dt(2019, 8, 6, 10, 31), dt(2019, 10, 4, 8, 18), partion_by='month')
     # for i in parts:
     #     print(i['fromdate'], '-', i['todate'])
     # p = date_period_into_parts(fromdate=dt(2019,9,5), todate=dt.now()); pprint(p)
@@ -319,7 +318,7 @@ if __name__ == '__main__':
     #obj = download_json('http://yandex.ru/'); pprint(obj)
     #obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY'); pprint(obj)
     #obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY_'); pprint(obj)
-    obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY_'); pprint(obj)
+    #obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY_'); pprint(obj)
 
     
 

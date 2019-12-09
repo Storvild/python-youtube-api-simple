@@ -39,6 +39,49 @@ class YoutubeItem():
     def __repr__(self):
         return '{} {:15} {:30} {:20} {}'.format(self.type, utils.truncatechars(self.code,15), utils.truncatechars(self.title,30), utils.truncatechars(self.description,20), self.publishedAt)
 
+class YoutubeException(Exception):
+    """ Класс исключений которые выдает ошибку Youtube в виде json:
+        {'error': {'code': 400,
+                   'errors': [{'domain': 'global',
+                       'location': 'fields',
+                       'locationType': 'parameter',
+                       'message': 'Invalid field selection 1*',
+                       'reason': 'invalidParameter'}],
+                   'message': 'Invalid field selection 1*'}}
+    """
+    def __init__(self, message, response_url, response_content, page_token=''):
+        super().__init__(message)
+        self.message = message
+        self.response_status = response_content['error']['code']
+        self.response_content = response_content
+        self.response_url = response_url
+        self.page_token = page_token
+        self.error_raw = response_content
+        self.domain = ''
+        self.location = ''
+        self.locationType = ''
+        self.error_msg = ''
+        self.error_count = len(response_content['error']['errors'])
+        self.reason = ''
+        if len(response_content['error']['errors'])>0:
+            if 'domain' in response_content['error']['errors'][0]:
+                self.domain = response_content['error']['errors'][0]['domain']
+            if 'location' in response_content['error']['errors'][0]:
+                self.location = response_content['error']['errors'][0]['location']
+            if 'locationType' in response_content['error']['errors'][0]:
+                self.locationType = response_content['error']['errors'][0]['locationType']
+            if 'message' in response_content['error']['errors'][0]:
+                self.error_msg = response_content['error']['errors'][0]['message']
+            if 'reason' in response_content['error']['errors'][0]:
+                self.reason = response_content['error']['errors'][0]['reason']
+                if self.reason == 'keyInvalid':
+                    self.message = 'Не верный ключ API_KEY'
+
+    def __str__(self):
+        return '{}: {}\nSTATUS: {}\nJSON: {}\nURL: {}\nPageToken: {}'.format(self.message, self.error_msg, self.response_status, self.response_content, self.response_url, self.page_token)
+
+
+
 
 class YoutubeApi():
     def __init__(self, ApiKey):
@@ -55,8 +98,10 @@ class YoutubeApi():
         #res = fake_download(url, pageToken)
 
         res = utils.download_json(url)
-        #if 'item' not in res:
-        #    utils.YoutubeException('')
+        if 'error' in res:
+            raise YoutubeException(message='download_yt_json: Ошибка обработки запроса', response_url=url, response_content=res, page_token=pageToken)
+        #if 'items' not in res:
+        #    pprint(res)
 
         return res
 
@@ -181,7 +226,7 @@ class YoutubeApi():
         return res
         
     
-    def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=1000):
+    def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=1000, page_handler=None):
         """ Получение подробной информации о видео или списке видео
             videoIDs - код видео, список видео через запятую в виде строки или списка
             part - получение информации о видео (snippet), лайки/дизлайки (statistics), длительность видео (contentDetails)
@@ -229,9 +274,14 @@ class YoutubeApi():
             ids = ','.join(videoIDs[i:i+maxResults])
             #print(ids)
             url = 'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}&maxResults={maxResults}&key={API_KEY}'.format(**{'part':part,'fields':fields,'ids':ids,'maxResults':maxResults,'API_KEY':self.ApiKey})
-            obj = self.download_yt_json(url)
-            #pprint(obj)
-            res.extend(obj['items'])
+            content = self.download_yt_json(url)
+            #pprint(content)
+            res.extend(content['items'])
+            
+            if page_handler:
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token='')
+                if do_continue is False:
+                    break
 
             if (i+maxResults)>limit and limit>0:
                 break
@@ -242,12 +292,13 @@ class YoutubeApi():
     
     def get_comments(self, videoId='', id='', parentId='', fields='*', limit=1000, order='relevance', textFormat='html', page_handler=None):
         """ Получить комментарии к видео 
-            Обязательно заполнить один из параметров:
-                videoId - комментарии к видео
-                id - id комментария или список id через запятую
-                parentId - ответы на комментарий (id)
-            order - сортировка relevance или date
-            textFormat - plainText или html
+            Обязательно заполнить один из параметров videoId или id или parentId:
+            
+            :params videoId:  Комментарии к видео
+            :params id:       id комментария или список id через запятую
+            :params parentId: Ответы на комментарий (id)
+            :params order:    Сортировка relevance или date
+            :params textFormat: Формат текста в textDisplay - plainText или html (В поле textOriginal только текст)
         """
         assert videoId!='' or id!='' or parentId!='', 'Должен быть заполнен один из параметров videoId, id или parentId'
 
@@ -289,9 +340,9 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
-    def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=1000, part='id,snippet,contentDetails', fields='*', order='date', fullInfo=False):
+    def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=1000, part='id,snippet,contentDetails', fields='*', order='date', fullInfo=False, page_handler=None):
         # maxResults>=1 and maxResults<=50
-        assert channelId!=0 or playlistId!=0
+        assert channelId != 0 or playlistId != 0
     
         # channelId = 'UCSZ69a-0I1RRdNssyttBFcA'
         # fields = '*'
@@ -338,10 +389,15 @@ class YoutubeApi():
                 ids = [x['id']['videoId'] for x in content['items']]
                 videos = self.get_videos_info(ids, fields=fields, part=part)
                 #pprint(ids)
-                pprint(videos)
+                #pprint(videos)
                 res.extend(videos)
             else:
                 res.extend(content['items'])
+
+            if page_handler:
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, page_token=pageToken)
+                if do_continue is False:
+                    break
 
             if 'nextPageToken' in content:
                 pageToken = content['nextPageToken']
@@ -351,12 +407,14 @@ class YoutubeApi():
         self.result_raw = res
         res = res[:limit]
         return res
-    
 
-        
+
 if __name__ == '__main__':
     from pprint import pprint
     yt = YoutubeApi('123')
+    #data = yt.get_comments(videoId='SMnI97CI-G8', fields='*', limit=10, order='relevance', textFormat='html')
+    #pprint(data)
+
     #obj = yt.download_yt_json('http://yandex.ru'); pprint(obj)
     #yt._result_parse()
     #dt1 = datetime(2019,11,3,10,54)
