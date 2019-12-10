@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import time
 from dateutil.relativedelta import relativedelta
 import re
-from . import utils
+#from . import utils
 #import utils
 
 def print_log(*args, **kwargs):
@@ -23,6 +23,11 @@ def fake_download(url, pageToken):
         res = {'items':[456]}    
     print_log(url)
     return res
+
+
+def _safe_url(url):
+    return re.sub(r'&key=[^&]+', '', url)
+
 
 class YoutubeItem():
     def __init__(self, code, type, title, publishedAt, description=''):
@@ -105,8 +110,7 @@ class YoutubeApi():
 
         return res
 
-       
-    
+
     def _result_parse(self, js):
         res = []
         for item in js:
@@ -229,6 +233,8 @@ class YoutubeApi():
             res.extend(content['items'])
 
             if page_handler:
+                yt_params = {'channelId': channelId, 'fields': fields, 'order': order, 'maxResults': maxResults, 'url': url, 'pageToken': pageToken, 'content_raw': content_raw, 'limit': limit}
+                do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, url=url, page_token=pageToken)
                 do_continue = page_handler(content=content['items'], content_raw=content, page_num=i, results_per_page=maxResults, url=url, page_token=pageToken)
                 if do_continue is False:
                     break
@@ -466,7 +472,7 @@ class YoutubeApi():
 if __name__ == '__main__':
     from pprint import pprint
     from datetime import datetime
-    yt = YoutubeApi('')
+    yt = YoutubeApi('123')
     #data = yt.get_comments(videoId='SMnI97CI-G8', fields='*', limit=10, order='relevance', textFormat='html')
     #pprint(data)
 
@@ -527,3 +533,5 @@ if __name__ == '__main__':
     #                   )
     #pprint(res)
     # print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
+    #print(_safe_url('http://googleapi.com/search?my=2&maxResults=3&key=123&pageToken=qqq'))
+    print(_safe_url('http://googleapi.com/search?my=2&maxResults=3&key=123'))
