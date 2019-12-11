@@ -42,15 +42,17 @@ def get_channels_test():
     #print('Найденные каналы:')
     #save_json('channels.json', channels)
     pprint(channels)
+    pprint(yt.result_simple)
     
 
 #get_channels_test()
 
-def get_playlists():
+def get_playlists_test():
     # Получение плейлистов с канала:
     #playlists = yt.get_playlists('UC4iAuuvx9hJilx4QOcd8V6A1')
     playlists = yt.get_playlists('UC8lCS8Ubv3t0-Tf4IYLioTA')
     pprint(playlists)
+    pprint(yt.result_simple)
     #save_json('playlists.json',playlists)
 
 #get_playlists()
@@ -63,9 +65,9 @@ def get_playlists():
 #videos = yt.get_videos_info(['7lqVYoKiMfw','7LeO_r8_L3k','_-pPLzyplS0','4ZMv35U9oYw','MHebByfQ_nc','lBcAmL8jX-Y','psDAuK8TduQ'], part='id', fields='id', limit=5)
 #pprint(videos)
 
-def comments_page_handler(content, content_raw, page_num, results_per_page, page_token):
+def comments_page_handler(content, content_raw, yt_params, params):
     print('\n\n')
-    print(page_num, '/', results_per_page, page_token, page_token)
+    print(params['i'], '/', params['limit'], 'pageToken=', yt_params['pageToken'], 'maxResults=', yt_params['maxResults'])
     pprint(content)
     pprint(content_raw)
     print('\n\n')
@@ -78,8 +80,8 @@ def get_comments_test():
     #pprint(comments)
     # comments = yt.get_comments(videoId='7lqVYoKiMfw', fields='nextPageToken,items(id,snippet(videoId,topLevelComment(id,snippet(authorDisplayName,textDisplay,textOriginal,publishedAt,updatedAt,viewerRating))))')
 
-    #comments = yt.get_comments(videoId='7lqVYoKiMfw', fields='nextPageToken,items(id)', limit=150, page_handler=comments_page_handler)
-    comments = yt.get_comments(videoId='SMnI97CI-G8', fields='id,*', limit=10, page_handler=comments_page_handler, textFormat='html')
+    #comments = yt.get_comments(videoId='7lqVYoKiMfw', fields='id,snippet', limit=150, page_handler=comments_page_handler)
+    #comments = yt.get_comments(videoId='SMnI97CI-G8', fields='id,*', limit=10, page_handler=comments_page_handler, textFormat='html')
 
     #comments = yt.get_comments(id='Uggb3EPddGJet3gCoAEC')
     #comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC')
@@ -91,6 +93,7 @@ def get_comments_test():
     #save_json('commentId.json', comments)
     #pprint(yt.result_raw)
     pprint(comments)
+    pprint(yt.result_simple)
 
 
 def _get_delta_list_test():
@@ -218,61 +221,48 @@ def download_json_test():
         }
     }
 
-def page_handler(content, content_raw, page_num, results_per_page, url, page_token):
+def page_handler(content, content_raw, yt_params, params):
+    print(yt_params['url'])
     pass
     #fn = 'log/{}_{}_{}.json'.format(url.replace('https://','').replace('www.googleapis.com/youtube/v3/','').replace('?','_'), page_num, page_token)
     #save_json(fn, content_raw)
 
+def ytdate_test():
+    print(utils.ytdate_to_str('PT1H24S'))
+    print(utils.ytdate_to_sec('PT1H24S'))
+    print(utils.ytdate_to_timedelta('P10DT2H24S'))
+
+def _correct_part_test():
+    print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
+
 def get_videos_test():
     from datetime import datetime
-    #videos = yt.get_videos(ids)
-    #videos = yt.get_videos([str(x) for x in range(0,125,1)])
-    #print(utils.ytdate_to_str('PT1H24S'))
-    #print(utils.ytdate_to_sec('PT1H24S'))
-    #print(utils.ytdate_to_timedelta('P10DT2H24S'))
-    #yt.get_videos(playlistId='123ABC')
-    #yt.get_videos(channelId='123ABC')
-    #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,12,1), todate=datetime(2019,12,8))
-    #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=3, fullInfo=True)
-    #pprint(videos)
-    res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', fromdate=datetime(2011,12,1), todate=datetime(2012,1,9), partion_by='month', fullInfo=True, page_handler=page_handler) #kvn
-    save_json('kvn2019-12-09.json', res)
+
+    #res = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,12,1), todate=datetime(2019,12,8))
+    #res = yt.get_videos(fields='id,kind,snippet(title,publishedAt)', channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=3, fullInfo=True)
+    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', fromdate=datetime(2012,12,1), todate=datetime(2013,1,9), partion_by='month', fullInfo=True, page_handler=page_handler) #kvn
+    #res = yt.get_videos_partion(fields='id,kind,snippet(title,publishedAt)', limit=60, channelId='UCSZ69a-0I1RRdNssyttBFcA', fromdate=datetime(2012,12,1), todate=datetime(2013,1,9), partion_by='month', fullInfo=True, page_handler=page_handler) #kvn
+    #res = yt.get_videos_partion(fields='id,snippet(title,publishedAt)', limit=60, channelId='UCSZ69a-0I1RRdNssyttBFcA', fromdate=datetime(2012,12,1), todate=datetime(2013,1,9), partion_by='month', fullInfo=True, page_handler=page_handler) #kvn
+    #res = yt.get_videos_partion(fields='*', limit=60, channelId='UCSZ69a-0I1RRdNssyttBFcA', fromdate=datetime(2012,12,1), todate=datetime(2013,1,9), partion_by='month', fullInfo=True, page_handler=page_handler) #kvn
+
     #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,11,29,8,30), todate=datetime(2019,12,2,21,0), partion_by='day')
     #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,10,29,8,30), todate=datetime(2019,2,2,21,0), partion_by='month')
-    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,12,29,8,30), todate=datetime(2019,1,2,21,0), partion_by='day')
-    #print(res)
 
     # fields = 'id,snippet(title,publishedAt)'
     # fields = '*'
     # res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', fromdate=None, todate=None, limit=5,
     #                    part='id,snippet', fields=fields, order='date', fullInfo=False, page_handler=None)
     #fields = 'id,snippet(title,publishedAt),statistics,contentDetails'
-    #fields = 'id,snippet(title,publishedAt),contentDetails'
     #fields='*'
-    #res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', limit=1000,
-    #                    part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=False, page_handler=page_handler)
-    #res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', limit=1000,
-    #                    part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=False, page_handler=page_handler)
-    #save_json('predelin.json',res)
+    fields = 'id,snippet(title,publishedAt),contentDetails'
+    #res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', limit=100, part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=False, page_handler=page_handler)
+    #res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', limit=100, part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=page_handler)
+    #res = yt.get_videos(q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', fromdate=None, todate=None, limit=5, part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None)
+    #res = yt.get_videos(q='', channelId='', playlistId='PLK-qRho50lIsxy-8B3FeAdKjtajY6XB06', fromdate=None, todate=None, limit=5, part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=True, page_handler=None)
+    #res = yt.get_videos_partion(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='квн', playlistId='', limit=5, part='id,snippet,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=None, partion_by=3)
 
-    #res = yt.get_videos(q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', fromdate=None, todate=None, limit=5,
-    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None)
-    #res = yt.get_videos(q='', channelId='', playlistId='PLK-qRho50lIsxy-8B3FeAdKjtajY6XB06', fromdate=None, todate=None, limit=5,
-    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=True, page_handler=None)
-
-    #res = yt.get_videos_partion(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
-    #                   part='id,snippet,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=None,
-    #                   partion_by=3)
-
-    #res = yt.get_videos_partion(fromdate=datetime(2019,1,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
-    #                   part='id,snippet,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=None,
-    #                   partion_by='month')
-
-    #res = yt.get_videos(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
-    #                   part='id,snippet,statistics,contentDetails', fields='id,contentDetails,snippet(title)', order='date', fullInfo=True, page_handler=None
-    #                   )
     pprint(res)
-    # print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
+    pprint(yt.result_simple)
     pass
 
 if __name__ == '__main__':
@@ -281,5 +271,9 @@ if __name__ == '__main__':
     #_result_parse_test()
     #utils_truncatechars_test()
     #download_json_test()
-    get_videos_test()
+    #get_videos_test()
+    #ytdate_test()
+    #_correct_part_test()
+    get_channels_test()
+    #get_playlists_test()
     pass
