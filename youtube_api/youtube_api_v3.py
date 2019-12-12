@@ -5,25 +5,8 @@ from datetime import datetime, timedelta
 import time
 from dateutil.relativedelta import relativedelta
 import re
-from . import utils
-#import utils
-
-def print_log(*args, **kwargs):
-    print(*args, **kwargs)
-
-def fake_download(url, pageToken):
-    res = {}
-    if pageToken=='':
-        res = {'items':[789], 'nextPageToken':'AAA'}
-    elif pageToken=='AAA':
-        res = {'items':[123], 'nextPageToken':'BBB'}
-    elif pageToken=='BBB':
-        res = {'items':[456], 'nextPageToken':'CCC'}
-    elif pageToken=='CCC':
-        res = {'items':[456]}    
-    print_log(url)
-    return res
-
+#from . import utils
+import utils
 
 def _clean_url(url):
     """ Очистка URL от API_KEY """
@@ -33,7 +16,8 @@ def _clean_url(url):
 class YoutubeItem():
     def __init__(self, code, type, title, publishedAt, description=''):
         """
-
+        Простой Youtube объект, содержащий только основные поля
+          Результат запросов можно преобразовать к списку подобных объектов методом: yt.parse_yt_result(js)
         :param code: ID видео видео | ID канала | ID плейлиста | ID комментария
         :param type: Тип элемента
         :param title: Заголовок видео | Наименование плейлиста | Наименование канала | Автор комментария
@@ -59,7 +43,7 @@ class YoutubeItem():
         return '{} {:15} {:30} {:20} {}'.format(self.type, utils.truncatechars(self.code,15), utils.truncatechars(self.title,30), utils.truncatechars(self.description,20), self.publishedAt)
 
 class YoutubeException(Exception):
-    """ Класс исключений которые выдает ошибку Youtube в виде json:
+    """ Класс исключения который вызывается, если получена ошибка Youtube в виде json:
         {'error': {'code': 400,
                    'errors': [{'domain': 'global',
                        'location': 'fields',
@@ -111,14 +95,12 @@ class YoutubeApi():
         """
         assert ApiKey != '', 'YoutubeApi: Необходимо указать KEY_API'
         self.ApiKey = ApiKey
-        self.result_simple = None  # Результат в виде плоского списка
         self.result_raw = None  # Оригинальный результат в виде структуры json
         self.timeout = 0.2  # Пауза между запросами
 
-
     def download_yt_json(self, url, pageToken=''):
         """
-        Загрузка json
+        Загрузка json из Youtube API (www.googleapis.com)
 
         :param url:  Скачивание json по данному URL
         :param pageToken: Токен вызываемой страницы
@@ -135,11 +117,16 @@ class YoutubeApi():
         res = utils.download_json(url)
         if 'error' in res:
             raise YoutubeException(message='download_yt_json: Ошибка обработки запроса', response_url=url, response_content=res, page_token=pageToken)
-
         return res
 
-
-    def _result_parse(self, js):
+    def parse_yt_result(self, js):
+        """
+        Распарсить результат, выдаваемый Youtube в простую структуру с основными полями
+        :param js: json, выдаваемый Youtube
+        :return: Список объектов YoutubeItem
+        :type js: object
+        :rtype: list[YoutubeItem]
+        """
         res = []
         for item in js:
             try:
@@ -228,9 +215,9 @@ class YoutubeApi():
         """
         Ф-ция убирает из part неиспользуемые поля, которых нет в fields
 
-        :param part:
-        :param fields:
-        :return:
+        :param part: Получаемые данные. Пример: 'id,snippet,statistics,contentDetails'
+        :param fields: Поля которые будут содержаться в результ. json: 'id,snippet(title,publishedAt),contentDetails'
+        :return: Новый список part Пример: 'id,snippet,contentDetails'
         """
         res = part
         if fields != '*':
@@ -260,7 +247,6 @@ class YoutubeApi():
         :rtype: list
         """
         self.result_raw = None
-        self.result_simple = None
 
         assert order in ('date','rating','relevance','title','videoCount','viewCount'), 'get_playlists: Неправильный параметр order: {}'.format(order)
         assert channelName!='', 'get_playlists: Не задано имя канала (channelName)'
@@ -279,10 +265,8 @@ class YoutubeApi():
         res = []
         pageToken = ''
         for i in range(0, limit, maxResults):
-            #print_log(i, i+maxResults)
             obj_json = self.download_yt_json(url, pageToken)
             content =  obj_json
-            #print_log(content)
             res.extend(content['items'])
 
             if page_handler:
@@ -301,7 +285,6 @@ class YoutubeApi():
                 break        
         self.result_raw = res
         res = res[:limit]
-        self.result_simple = self._result_parse(res)
         return res
 
     def get_playlists(self, channelId, fields='*', limit=1000, order='date', page_handler=None):
@@ -322,7 +305,6 @@ class YoutubeApi():
         :rtype: list
         """
         self.result_raw = None
-        self.result_simple = None
         assert order in ('date','rating','relevance','title','videoCount','viewCount'), 'get_playlists: Неправильный параметр order: {}'.format(order)
         assert channelId!='', 'get_playlists: Не задан Id канала (channelId)'
         if fields in ('','*'):
@@ -339,11 +321,8 @@ class YoutubeApi():
         res = []
         pageToken = ''
         for i in range(0, limit, maxResults):
-            #print_log(i, i+maxResults)
             obj_json = self.download_yt_json(url, pageToken)
             content =  obj_json
-            #pprint(content)
-            #print_log(content)
             res.extend(content['items'])
 
             if page_handler:
@@ -363,7 +342,6 @@ class YoutubeApi():
 
         self.result_raw = res
         res = res[:limit]
-        self.result_simple = self._result_parse(res)
         return res
 
     def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=1000, page_handler=None):
@@ -401,7 +379,6 @@ class YoutubeApi():
         :rtype: list
         """
         self.result_raw = None
-        self.result_simple = None
 
         assert type(videoIDs) in (list, tuple, set, str)
         
@@ -438,7 +415,6 @@ class YoutubeApi():
                 break
         self.result_raw = res
         res = res[:limit]
-        self.result_simple = self._result_parse(res)
 
         return res
     
@@ -453,7 +429,6 @@ class YoutubeApi():
             :params textFormat: Формат текста в textDisplay - plainText или html (В поле textOriginal только текст)
         """
         self.result_raw = None
-        self.result_simple = None
 
         assert videoId!='' or id!='' or parentId!='', 'Должен быть заполнен один из параметров videoId, id или parentId'
 
@@ -512,7 +487,6 @@ class YoutubeApi():
                 break
         self.result_raw = res
         res = res[:limit]
-        self.result_simple = self._result_parse(res)
         return res
 
     def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=1000,
@@ -547,50 +521,40 @@ class YoutubeApi():
         :rtype: list
         """
         self.result_raw = None
-        self.result_simple = None
 
         assert channelId != 0 or playlistId != 0
 
-        # channelId = 'UCSZ69a-0I1RRdNssyttBFcA'
-        # fields = '*'
-        # fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt,channelTitle,channelId))'
-
         part_main = 'id,snippet'
         if fullInfo:
-            #fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt))'
-            fields_main = 'nextPageToken,pageInfo,items(id)'  #.format(fields)
+            #fields = 'nextPageToken,pageInfo,items(id,snippet(title,publishedAt,channelTitle,channelId))'
+            fields_main = 'nextPageToken,pageInfo,items(id)'
         else:
-            fields_temp = fields.replace(',contentDetails','').replace(',statistics','')
+            fields_temp = fields.replace(',contentDetails', '').replace(',statistics', '')
             if fields in ('', '*'):
                 fields_main = '*'
             elif 'nextPageToken' not in fields_temp:  # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
                 fields_main = 'nextPageToken,pageInfo,items({})'.format(fields_temp)
             else:
                 fields_main = fields_temp  # Если передали nextPageToken, то вставляем без изменений
-            #if 'contentDetails' in fields_main or 'statistics' in fields_main:
-            #    raise Exception('get_videos: contantDetails и statistics не допускаются в fields')
 
         maxResults = 50  # Количество объектов на 1 запрос. Максимум = 50
-        # maxIteration = 20 # Максимальное количество итераций для получения данных по 50 объектов. Максимум 20.
 
         published = ''
         if fromdate:
-            if type(fromdate)==str:
+            if type(fromdate) == str:
                 published += f'&publishedAfter={fromdate}' #2019-01-01T00:00:00Z
             else:
                 published += '&publishedAfter={}Z'.format(fromdate.replace(microsecond=0).isoformat(sep='T'))
         if todate:
-            if type(todate)==str:
+            if type(todate) == str:
                 published += f'&publishedBefore={todate}' #2019-12-31T23:59:59Z
             else:
                 published += '&publishedBefore={}Z'.format(todate.replace(microsecond=0).isoformat(sep='T'))
 
         if playlistId:
-            # part = 'id,contentDetails,snippet' #contentDetails: 2; id: 0; snippet: 2; status: 2 (+1)
             url = 'https://www.googleapis.com/youtube/v3/playlistItems?part={part}' \
                   '&fields=nextPageToken,pageInfo,items(id,snippet)&playlistId={playlistId}&maxResults={maxResults}' \
                   '&key={API_KEY}'.format(**{'part': part_main, 'fields': fields_main, 'playlistId': playlistId, 'maxResults': maxResults, 'API_KEY': self.ApiKey})
-            # Параметр videoId в playlistItems?????????????????????
         elif channelId:
             url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
                   '&channelId={channelId}&maxResults={maxResults}&order={order}{published}' \
@@ -608,7 +572,7 @@ class YoutubeApi():
                 fields_full = fields
                 if fields in ('', '*'):
                     fields_full = '*'
-                elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+                elif 'nextPageToken' not in fields:  # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
                     fields_full = 'nextPageToken,pageInfo,items({})'.format(fields)
 
                 # Если в fields переданы поля, убираем из part неиспользуемые
@@ -639,7 +603,6 @@ class YoutubeApi():
                 break
         self.result_raw = res
         res = res[:limit]
-        self.result_simple = self._result_parse(res)
         return res
 
     def get_videos_partion(self, fromdate, todate, q='', channelId='', playlistId='', limit=1000,
@@ -688,90 +651,11 @@ class YoutubeApi():
 
         self.result_raw = res
         res = res[:limit]
-        self.result_simple = self._result_parse(res)
         return res
-
-def mytest(a, b=30, **kwargs):
-    import  inspect
-    print(a)
-    l1 = 'test1'
-    #print(locals())
-    frame = inspect.currentframe()
-    args, _, _, values = inspect.getargvalues(frame)
-    print(args, values)
 
 
 if __name__ == '__main__':
     from pprint import pprint
     from datetime import datetime
     yt = YoutubeApi('123')
-    #data = yt.get_comments(videoId='SMnI97CI-G8', fields='*', limit=10, order='relevance', textFormat='html')
-    #pprint(data)
-
-    #obj = yt.download_yt_json('http://yandex.ru'); pprint(obj)
-    #yt._result_parse()
-    #dt1 = datetime(2019,11,3,10,54)
-    #dt2 = datetime.now()
-    #d1 = utils.date_period_into_parts(dt1, dt2, part_by='day')
-    #pprint(d1)
-    #d2 = utils.date_period_into_parts(dt1, dt2, part=10, part_by='month')
-    #pprint(d2)
-    #d3 = utils.date_period_into_parts(dt1, dt2, part=5)
-    #pprint(d3)
-    #yt.get_playlists('')
-    #playlists = yt.get_playlists('UCSZ69a-0I1RRdNssyttBFcA')
-    #playlists = yt.get_playlists(channelId='UC4iAuuvx9hJilx4QOcd8V6A')
-    #print_log(playlists)
-    #yt.get_video_info(['1','3'])
-    #videos = yt.get_videos('7lqVYoKiMfw,7LeO_r8_L3k')
-    #ids = ','.join([str(x) for x in range(0,121,1)])
-    #ids = [x for x in range(0,121,1)]
-    #print(ids)
-    
-    #videos = yt.get_videos(ids)
-    #videos = yt.get_videos([str(x) for x in range(0,125,1)])
-    #print(utils.ytdate_to_str('PT1H24S'))
-    #print(utils.ytdate_to_sec('PT1H24S'))
-    #print(utils.ytdate_to_timedelta('P10DT2H24S'))
-    #yt.get_videos(playlistId='123ABC')
-    #yt.get_videos(channelId='123ABC')
-    #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,12,1), todate=datetime(2019,12,8))
-    #videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=3, fullInfo=True)
-    #pprint(videos)
-    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,10,8), todate=datetime(2019,12,2), partion_by='month')
-    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,11,29,8,30), todate=datetime(2019,12,2,21,0), partion_by='day')
-    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,10,29,8,30), todate=datetime(2019,2,2,21,0), partion_by='month')
-    #res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,12,29,8,30), todate=datetime(2019,1,2,21,0), partion_by='day')
-    #print(res)
-
-    # fields = 'id,snippet(title,publishedAt)'
-    # fields = '*'
-    # res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', fromdate=None, todate=None, limit=5,
-    #                    part='id,snippet', fields=fields, order='date', fullInfo=False, page_handler=None)
-    #fields = 'id,snippet(title,publishedAt),statistics,contentDetails'
-    #res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', fromdate=None, todate=None, limit=5,
-    #                    part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=None)
-
-    #res = yt.get_videos(q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', fromdate=None, todate=None, limit=5,
-    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None)
-    #res = yt.get_videos(q='', channelId='', playlistId='PLK-qRho50lIsxy-8B3FeAdKjtajY6XB06', fromdate=None, todate=None, limit=5,
-    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=True, page_handler=None)
-    #res = yt.get_videos_partion(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
-    #                   part='id,snippet,contentDetails', fields='*', order='date', fullInfo=True, page_handler=None,
-    #                   partion_by=3)
-    #pprint(res)
-    #res = yt.get_videos(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
-    #                   part='id,snippet,statistics,contentDetails', fields='id,contentDetails,snippet(title)', order='date', fullInfo=True, page_handler=None
-    #                   )
-    #pprint(res)
-    # print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
-    #print(_safe_url('http://googleapi.com/search?my=2&maxResults=3&key=123&pageToken=qqq'))
-    #print(_clean_url('http://googleapi.com/search?my=2&maxResults=3&key=123'))
-
-    #mytest('first', 20, p='param1')
-    #import inspect
-    # sig = inspect.signature(mytest)
-    #print(dir(sig))
-    #pprint(sig.parameters)
-    #pprint(mytest.__code__)
-    #pprint(mytest.__defaults__)
+    help(YoutubeApi)

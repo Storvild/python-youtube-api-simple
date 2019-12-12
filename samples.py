@@ -265,6 +265,80 @@ def get_videos_test():
     pprint(yt.result_simple)
     pass
 
+def from_main():
+
+
+    # data = yt.get_comments(videoId='SMnI97CI-G8', fields='*', limit=10, order='relevance', textFormat='html')
+    # pprint(data)
+
+    # obj = yt.download_yt_json('http://yandex.ru'); pprint(obj)
+    # yt._result_parse()
+    # dt1 = datetime(2019,11,3,10,54)
+    # dt2 = datetime.now()
+    # d1 = utils.date_period_into_parts(dt1, dt2, part_by='day')
+    # pprint(d1)
+    # d2 = utils.date_period_into_parts(dt1, dt2, part=10, part_by='month')
+    # pprint(d2)
+    # d3 = utils.date_period_into_parts(dt1, dt2, part=5)
+    # pprint(d3)
+    # yt.get_playlists('')
+    # playlists = yt.get_playlists('UCSZ69a-0I1RRdNssyttBFcA')
+    # playlists = yt.get_playlists(channelId='UC4iAuuvx9hJilx4QOcd8V6A')
+    # yt.get_video_info(['1','3'])
+    # videos = yt.get_videos('7lqVYoKiMfw,7LeO_r8_L3k')
+    # ids = ','.join([str(x) for x in range(0,121,1)])
+    # ids = [x for x in range(0,121,1)]
+    # print(ids)
+
+    # videos = yt.get_videos(ids)
+    # videos = yt.get_videos([str(x) for x in range(0,125,1)])
+    # print(utils.ytdate_to_str('PT1H24S'))
+    # print(utils.ytdate_to_sec('PT1H24S'))
+    # print(utils.ytdate_to_timedelta('P10DT2H24S'))
+    # yt.get_videos(playlistId='123ABC')
+    # yt.get_videos(channelId='123ABC')
+    # videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,12,1), todate=datetime(2019,12,8))
+    # videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=3, fullInfo=True)
+    # pprint(videos)
+    # res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,10,8), todate=datetime(2019,12,2), partion_by='month')
+    # res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2019,11,29,8,30), todate=datetime(2019,12,2,21,0), partion_by='day')
+    # res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,10,29,8,30), todate=datetime(2019,2,2,21,0), partion_by='month')
+    # res = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, fromdate=datetime(2018,12,29,8,30), todate=datetime(2019,1,2,21,0), partion_by='day')
+    # print(res)
+
+    # fields = 'id,snippet(title,publishedAt)'
+    # fields = '*'
+    # res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', fromdate=None, todate=None, limit=5,
+    #                    part='id,snippet', fields=fields, order='date', fullInfo=False, page_handler=None)
+    # fields = 'id,snippet(title,publishedAt),statistics,contentDetails'
+    # res = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', fromdate=None, todate=None, limit=5,
+    #                    part='id,snippet,statistics,contentDetails', fields=fields, order='date', fullInfo=True, page_handler=None)
+
+    # res = yt.get_videos(q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', fromdate=None, todate=None, limit=5,
+    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None)
+    # res = yt.get_videos(q='', channelId='', playlistId='PLK-qRho50lIsxy-8B3FeAdKjtajY6XB06', fromdate=None, todate=None, limit=5,
+    #                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=True, page_handler=None)
+    # res = yt.get_videos_partion(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
+    #                   part='id,snippet,contentDetails', fields='*', order='date', fullInfo=True, page_handler=None,
+    #                   partion_by=3)
+    # pprint(res)
+    # res = yt.get_videos(fromdate=datetime(2019,10,1), todate=datetime(2019,12,1), q='', channelId='UC4iAuuvx9hJilx4QOcd8V6A', playlistId='', limit=5,
+    #                   part='id,snippet,statistics,contentDetails', fields='id,contentDetails,snippet(title)', order='date', fullInfo=True, page_handler=None
+    #                   )
+    # pprint(res)
+    # print(yt._correct_part('id,snippet,statistics,contentDetails','statistics,snippet(*)'))
+    # print(_safe_url('http://googleapi.com/search?my=2&maxResults=3&key=123&pageToken=qqq'))
+    # print(_clean_url('http://googleapi.com/search?my=2&maxResults=3&key=123'))
+
+    # mytest('first', 20, p='param1')
+    # import inspect
+    # sig = inspect.signature(mytest)
+    # print(dir(sig))
+    # pprint(sig.parameters)
+    # pprint(mytest.__code__)
+    # pprint(mytest.__defaults__)
+
+
 if __name__ == '__main__':
     # _get_delta_list_test()
     #get_comments_test()
