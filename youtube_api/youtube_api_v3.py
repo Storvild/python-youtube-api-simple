@@ -5,12 +5,14 @@ from datetime import datetime, timedelta
 import time
 from dateutil.relativedelta import relativedelta
 import re
-#from . import utils
-import utils
+from . import utils
+#import utils
 
 def _clean_url(url):
     """ Очистка URL от API_KEY """
-    return re.sub(r'&key=[^&]+', '', url)
+    res = re.sub(r'[&]key=[^&]+', '', url)
+    res = re.sub(r'[?]key=[^&]+&?', '?', res)
+    return res
 
 
 class YoutubeItem():
@@ -229,7 +231,7 @@ class YoutubeApi():
             res = ','.join(part_new)
         return res
 
-    def get_channels(self, channelName, fields='*', limit=1000, order='relevance', page_handler=None):
+    def get_channels(self, channelName, fields='*', limit=50, order='relevance', page_handler=None):
         """
         Поиск каналов по имени
 
@@ -287,7 +289,7 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
-    def get_playlists(self, channelId, fields='*', limit=1000, order='date', page_handler=None):
+    def get_playlists(self, channelId, fields='*', limit=50, order='date', page_handler=None):
         """
         Получить плейлисты определенного канала (cost:100/страницу)
 
@@ -344,7 +346,7 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
-    def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=1000, page_handler=None):
+    def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=50, page_handler=None):
         """
         Получение расширенной информации о видео или списке видео
 
@@ -418,7 +420,7 @@ class YoutubeApi():
 
         return res
     
-    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=1000, order='relevance', textFormat='html', page_handler=None):
+    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=100, order='relevance', textFormat='html', page_handler=None):
         """ Получение комментариев к видео, комментария по id или ответы на указанный комментарий
 
             Обязательно заполнить один из параметров videoId или id или parentId
@@ -489,7 +491,7 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
-    def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=1000,
+    def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=50,
                    part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None):
         """
         Получение списка видео с канала (channelId), плейлиста (playlistId) или по поиску (q)
@@ -605,7 +607,7 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
-    def get_videos_partion(self, fromdate, todate, q='', channelId='', playlistId='', limit=1000,
+    def get_videos_partion(self, fromdate, todate, q='', channelId='', playlistId='', limit=50,
                            part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None,
                            partion_by=1):
         """

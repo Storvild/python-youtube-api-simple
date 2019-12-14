@@ -18,6 +18,7 @@
         truncatechars('Длинный текст', 8, onestring=True) -> 'Длинн...'
 """
 
+
 class DownloadException(Exception):
     def __init__(self, message, response_status, response_url, response_content, response_encoding):
         # Call the base class constructor with the parameters it needs
@@ -75,6 +76,7 @@ def ytdate_to_timedelta(ytdate):
     res = timedelta(seconds=sec)
     return res
 
+
 def ytdate_to_str(ytdate):
     """ Преобразование времени ролика из Youtube-формата в форматированный текст
         :param ytdate: Время в виде PT2H16M36S
@@ -88,7 +90,7 @@ def ytdate_to_str(ytdate):
         'P10DT2H16M36S' -> '10d 02:16:36'
     """
     import re
-    res = '00:00:00'
+
     re_days = re.search('(\d+)DT', ytdate)
     days = int(re_days.group(1)) if re_days else 0
     days_str = ''
@@ -100,9 +102,9 @@ def ytdate_to_str(ytdate):
     minute = int(re_min.group(1)) if re_min else 0
     re_sec = re.search('(\d+)S', ytdate)
     sec = int(re_sec.group(1)) if re_sec else 0
-    #print(days, hour, minute, sec)
     res = '{}{:02}:{:02}:{:02}'.format(days_str, hour, minute, sec)
     return res
+
 
 def save_json(filename, content, format=True, encoding='utf-8'):
     """ Сохранение json данных в файл 
@@ -120,6 +122,7 @@ def save_json(filename, content, format=True, encoding='utf-8'):
             json.dump(content, fw, sort_keys=True, ensure_ascii=False) 
     return True
 
+
 def load_json(filename, encoding='utf-8'):
     """ Загрузка json данных из файла
         :param filename: Имя файла
@@ -130,6 +133,7 @@ def load_json(filename, encoding='utf-8'):
     with open(filename, 'r', encoding=encoding) as f:
         return json.load(f)
 
+
 def download_json(url):
     """ Загрузка json """
     import json.decoder
@@ -138,24 +142,10 @@ def download_json(url):
     response = requests.get(url)
     try:
         res = response.json()
-        # print('Status:', response.status_code)
-        # print('URL:', response.url)
-        # print('TEXT:', response.text)
-        # print('Encoding:', response.encoding)
     except json.decoder.JSONDecodeError as e:
-        #print('MSG:', e.msg)
-        #print('DOC:', e.doc)
-        #print('pos, colno, lineno:',e.pos, e.colno, e.lineno)
-        #raise e
         raise DownloadException(str(e), response.status_code, response.url, response.text, response.encoding)
     except Exception as e:
-        #print('Status:', response.status_code)
-        #print('URL:', response.url)
-        #print('TEXT:', response.text)
-        #print('Encoding:', response.encoding)
-        #print(type(e))
         raise e
-        #raise DownloadException('Ошибка получения json', response.status_code, response.url, response.text, response.encoding)
 
     return res
 
@@ -288,38 +278,9 @@ def truncatechars(text, length, onestring=True):
 
 
 if __name__ == '__main__':
-    from pprint import pprint
-    from datetime import datetime as dt
-    import requests
-    # print(ytdate_to_sec('PT1H24S'))
-    # print(ytdate_to_sec('PT2H16M36S'))
-    # print()
-    # print(ytdate_to_str('PT1H24S'))
-    # print(ytdate_to_str('PT2H16M36S'))
-    # print(ytdate_to_str('P10DT2H16M36S'))
-    # print()
-    # print(ytdate_to_timedelta('PT1H24S'))
-    # print(ytdate_to_timedelta('PT2H16M36S'))
-    # print(ytdate_to_timedelta('P10DT2H16M36S'))
-    # save_json('my_test.json', {'id':'УИ','fullname':'Тест', 'items':[1,2,3]})
-    # save_json('my_test_format.json', {'id':'УИ','fullname':'Тест', 'items':[1,2,3]}, format=True)
-    # obj = load_json('my_test.json'); pprint(obj)
-    # parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now(), partion_by=3)
-    # parts = date_period_into_parts(fromdate=dt(2019,9,5,10,31), todate=dt.now())
-    # parts = date_period_into_parts(dt(2019,8,1,10,31), dt(2019,12,4,8,18), partion_by='month')
-    # pprint(parts)
-    # parts = date_period_into_parts(dt(2019, 8, 6, 10, 31), dt(2019, 10, 4, 8, 18), partion_by='month')
-    # for i in parts:
-    #     print(i['fromdate'], '-', i['todate'])
-    # p = date_period_into_parts(fromdate=dt(2019,9,5), todate=dt.now()); pprint(p)
-    # print(dt(2019,10,2))
-    # txt = truncatechars('Длинный текст', 8, onestring=True); print(txt)
-    # txt = truncatechars('Длинный', 6, onestring=True); print(txt)
-    #obj = download_json('http://yandex.ru/'); pprint(obj)
-    #obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY'); pprint(obj)
-    #obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY_'); pprint(obj)
-    #obj = download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY_'); pprint(obj)
+    pass
+    #from pprint import pprint
+    #from datetime import datetime as dt
 
-    
 
 
