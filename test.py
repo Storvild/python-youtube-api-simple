@@ -114,6 +114,17 @@ class TestYoutubeApi(unittest.TestCase):
         self.assertEqual(obj[0]['id']['kind'], 'youtube#video')
         self.assertGreaterEqual(len(obj), 0)
 
+    def _test_get_videos_q(self):
+        obj = self.yt.get_videos(q='квн', limit=10, order='relevance')
+        self.assertEqual(len(obj), 10)
+        self.assertIn('snippet', obj[0])
+
+    def test_get_videos_fullinfo(self):
+        obj = self.yt.get_videos(channelId='UC8lCS8Ubv3t0-Tf4IYLioTA', fullInfo=True,
+                                 fields='id,snippet(title,publishedAt),statistics,contentDetails', limit=5)
+        self.assertGreaterEqual(len(obj), 1)
+        self.assertIn('contentDetails', obj[0])
+
     def _test_get_videos_partion(self):
         from datetime import datetime
         obj = self.yt.get_videos_partion(fromdate=datetime(2019,1,30,10,30), todate=datetime(2019,2,3), limit=5,

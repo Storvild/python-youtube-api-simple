@@ -44,6 +44,24 @@ comments = yt.get_comments(id='Uggb3EPddGJet3gCoAEC')
 comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC')    
 ```
 
+#### Получить список видео с определенного плейлиста
+videos = yt.get_videos(playlistId='PLnP4EuRGIgUHuJ0wWST3aFzx0DsThs9Cm')
+
+#### Получить список видео с определенного канала по ID-канала c 01.11.2019 по 15.11.2019
+from datetime import datetime
+videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fromdate=datetime(2019,11,1), todate=datetime(2019,11,15))
+
+#### Получить список видео по поисковой строке "квн" с лимитом записей 10 отсортированный по дате
+videos = yt.get_videos(q='квн', limit=10, order='date')
+
+#### Получить список видео с полной информацией о видео
+videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True)
+
+#### Получить список видео с полной информацией о видео с определенными полями
+videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True, fields='id,snippet(title,publishedAt),statistics,contentDetails')
+
+
+
 #### Калькулятор квот:
 [https://developers.google.com/youtube/v3/determine_quota_cost](https://developers.google.com/youtube/v3/determine_quota_cost)
 
