@@ -68,7 +68,8 @@ videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True)
 
 #### Получить список видео с полной информацией и с комментариями (максимум по 100 к каждому видео)
 ```python    
-videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True, add_comments=True, comments_limit=100)
+videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', 
+                       fullInfo=True, add_comments=True, comments_limit=100)
 ```
 
 #### Получить список видео с полной информацией и с поиском комментария с таймкодами.

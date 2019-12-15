@@ -54,9 +54,13 @@ class TestUtils(unittest.TestCase):
             self.assertEqual(e.response_status, 200)
             self.assertNotEqual(e.response_content, '')
 
-    def test_download_json(self):
+    def _test_download_json(self):
         obj = utils.download_json('http://storvild.ru/yt.php?videoId=4rbauSBo8kY');
         self.assertIn('items', obj)
+
+    def test_clean_text(self):
+        self.assertEqual(utils.clean_text('Лайк,\nкак всегда! 👍😊, Another text!'), 'Лайк,\nкак всегда! , Another text!')
+        self.assertEqual(utils.clean_text('Лайк,\nкак всегда! 👍😊, Another text!', replace_newline=' '), 'Лайк, как всегда! , Another text!')
 
 
 def videos_partion_handler(content, content_raw, yt_params, params):
@@ -119,7 +123,7 @@ class TestYoutubeApi(unittest.TestCase):
         self.assertEqual(len(obj), 10)
         self.assertIn('snippet', obj[0])
 
-    def test_get_videos_fullinfo(self):
+    def _test_get_videos_fullinfo(self):
         obj = self.yt.get_videos(channelId='UC8lCS8Ubv3t0-Tf4IYLioTA', fullInfo=True,
                                  fields='id,snippet(title,publishedAt),statistics,contentDetails', limit=5)
         self.assertGreaterEqual(len(obj), 1)
