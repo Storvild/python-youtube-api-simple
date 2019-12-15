@@ -4,7 +4,7 @@
 Используется: YouTube Data API v3    
 Тестировалось на: Python 3.6.6
 
-Для работы с Youtube API необходимо получить API_KEY в Google    
+#### Для работы с Youtube API необходимо получить API_KEY в Google    
 1. Зарегистрироваться на сайте [console.developers.google.com/project](https://console.developers.google.com/project)   
 2. Создать новый проект    
 3. Активировать Youtube Data API на странице [console.developers.google.com/apis/library/youtube.googleapis.com](https://console.developers.google.com/apis/library/youtube.googleapis.com)    
@@ -112,7 +112,7 @@ obj = self.yt.get_videos_partion(fromdate=datetime(2019,1,30,10,30), todate=date
 Например, c 2019 года, при создании приложения, квота составляет 10 000 единиц 
 Один вызов videos с максимальным кол-вом видео = 50 занимает 1 единицу + несколько единиц в зависимости от того, что написано в part
 Пример: yt.get_videos_info(videoIDs='<videoCode1,videoCode2...>', limit=50, part='id,snippet,contentDetais') в данном API) занимает 5 единиц
-Если в part находятся другие поля, то затраты изменятся исходя из:
+Если в part находятся другие поля, то затраты изменятся исходя из того какие из них в нем находятся:
 * contentDetails: 2
 * fileDetails: 1
 * id: 0

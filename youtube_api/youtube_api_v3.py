@@ -346,6 +346,77 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
+    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=100, order='relevance', textFormat='html', page_handler=None):
+        """ Получение комментариев к видео, комментария по id или ответы на указанный комментарий
+
+            Обязательно заполнить один из параметров videoId или id или parentId
+            :params videoId:  Комментарии к видео
+            :params id:       id комментария или список id через запятую
+            :params parentId: Ответы на комментарий (id)
+            :params order:    Сортировка relevance или date
+            :params textFormat: Формат текста в textDisplay - plainText или html (В поле textOriginal только текст)
+        """
+        self.result_raw = None
+
+        assert videoId!='' or id!='' or parentId!='', 'Должен быть заполнен один из параметров videoId, id или parentId'
+
+        if fields in ('', '*'):
+            fields = '*'
+        elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+            fields = 'nextPageToken,items({})'.format(fields)
+
+        maxResults = 100  # По умолчанию 100
+        if limit<100:
+            maxResults = limit
+
+        url = ''
+        part = 'snippet'
+        if videoId:
+            url = 'https://www.googleapis.com/youtube/v3/commentThreads?part={part}&fields={fields}' \
+                '&maxResults={maxResults}&videoId={videoId}&textFormat={textFormat}&order={order}' \
+                '&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'videoId': videoId,
+                                           'maxResults': maxResults, 'textFormat': textFormat, 'order': order,
+                                           'API_KEY': self.ApiKey})
+        elif id:
+            url = 'https://www.googleapis.com/youtube/v3/comments?part={part}&fields={fields}' \
+                  '&maxResults={maxResults}&id={id}&textFormat={textFormat}&order={order}' \
+                  '&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'id': id, 'maxResults':maxResults,
+                                             'textFormat':textFormat, 'order':order,
+                                             'API_KEY': self.ApiKey})
+        elif parentId:
+            url = 'https://www.googleapis.com/youtube/v3/comments?part={part}&fields={fields}' \
+                  '&maxResults={maxResults}&parentId={parentId}&textFormat={textFormat}&order={order}' \
+                  '&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'parentId': parentId,
+                                             'maxResults': maxResults, 'textFormat': textFormat, 'order': order,
+                                             'API_KEY': self.ApiKey})
+
+        res = []
+        pageToken = ''
+        for i in range(0, limit, maxResults):
+            obj_json = self.download_yt_json(url, pageToken)
+            content = obj_json
+            res.extend(content['items'])
+
+            if page_handler:
+                yt_url = '{}&pageToken={}'.format(_clean_url(url), pageToken)
+                yt_params = {'url': yt_url, 'id': id, 'videoId': videoId, 'parentId': parentId,
+                             'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults,
+                             'order': order, 'textFormat': textFormat}
+                params = {'i': i, 'limit': limit}
+                do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
+
+                if do_continue is False:
+                    break
+
+            if 'nextPageToken' in content:
+                pageToken = content['nextPageToken']
+                time.sleep(self.timeout)
+            else:
+                break
+        self.result_raw = res
+        res = res[:limit]
+        return res
+
     def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=50, page_handler=None):
         """
         Получение расширенной информации о видео или списке видео
@@ -420,77 +491,6 @@ class YoutubeApi():
 
         return res
     
-    def get_comments(self, videoId='', id='', parentId='', fields='*', limit=100, order='relevance', textFormat='html', page_handler=None):
-        """ Получение комментариев к видео, комментария по id или ответы на указанный комментарий
-
-            Обязательно заполнить один из параметров videoId или id или parentId
-            :params videoId:  Комментарии к видео
-            :params id:       id комментария или список id через запятую
-            :params parentId: Ответы на комментарий (id)
-            :params order:    Сортировка relevance или date
-            :params textFormat: Формат текста в textDisplay - plainText или html (В поле textOriginal только текст)
-        """
-        self.result_raw = None
-
-        assert videoId!='' or id!='' or parentId!='', 'Должен быть заполнен один из параметров videoId, id или parentId'
-
-        if fields in ('', '*'):
-            fields = '*'
-        elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
-            fields = 'nextPageToken,items({})'.format(fields)
-
-        maxResults = 100  # По умолчанию 100
-        if limit<100:
-            maxResults = limit
-
-        url = ''
-        part = 'snippet'
-        if videoId:
-            url = 'https://www.googleapis.com/youtube/v3/commentThreads?part={part}&fields={fields}' \
-                '&maxResults={maxResults}&videoId={videoId}&textFormat={textFormat}&order={order}' \
-                '&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'videoId': videoId,
-                                           'maxResults': maxResults, 'textFormat': textFormat, 'order': order,
-                                           'API_KEY': self.ApiKey})
-        elif id:
-            url = 'https://www.googleapis.com/youtube/v3/comments?part={part}&fields={fields}' \
-                  '&maxResults={maxResults}&id={id}&textFormat={textFormat}&order={order}' \
-                  '&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'id': id, 'maxResults':maxResults,
-                                             'textFormat':textFormat, 'order':order,
-                                             'API_KEY': self.ApiKey})
-        elif parentId:
-            url = 'https://www.googleapis.com/youtube/v3/comments?part={part}&fields={fields}' \
-                  '&maxResults={maxResults}&parentId={parentId}&textFormat={textFormat}&order={order}' \
-                  '&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'parentId': parentId,
-                                             'maxResults': maxResults, 'textFormat': textFormat, 'order': order,
-                                             'API_KEY': self.ApiKey})
-
-        res = []
-        pageToken = ''
-        for i in range(0, limit, maxResults):
-            obj_json = self.download_yt_json(url, pageToken)
-            content = obj_json
-            res.extend(content['items'])
-
-            if page_handler:
-                yt_url = '{}&pageToken={}'.format(_clean_url(url), pageToken)
-                yt_params = {'url': yt_url, 'id': id, 'videoId': videoId, 'parentId': parentId,
-                             'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults,
-                             'order': order, 'textFormat': textFormat}
-                params = {'i': i, 'limit': limit}
-                do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
-
-                if do_continue is False:
-                    break
-
-            if 'nextPageToken' in content:
-                pageToken = content['nextPageToken']
-                time.sleep(self.timeout)
-            else:
-                break
-        self.result_raw = res
-        res = res[:limit]
-        return res
-
     def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=50,
                    part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None):
         """
