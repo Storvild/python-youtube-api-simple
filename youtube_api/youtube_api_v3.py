@@ -417,7 +417,7 @@ class YoutubeApi():
         res = res[:limit]
         return res
 
-    def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=50, page_handler=None):
+    def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=50, page_handler=None, add_comments=False, comments_limit=100, add_timecodes=False):
         """
         Получение расширенной информации о видео или списке видео
 
@@ -443,18 +443,26 @@ class YoutubeApi():
                 topicDetails: 2
         :param limit: Лимит количества получаемых записей
         :param page_handler: Ф-ция вызываемая после каждого youtube запроса (постраничного)
+        :param add_comments: Получать комментарии
+        :param comments_limit: Максимальное кол-во получаемых комментариев. Поддерживается максимум 100
+        :param add_timecodes: Искать таймкоды в комментариях. Ищется первый комментарий в котором хотябы 2 раза
+            повторяется время "8:12 любой текст \n20:25"
         :return: Список видео в виде структуры json с подробной информацией
         :type videoIDs: str|list
         :type fields:  str
         :type part:  str
         :type limit: int
         :type page_handler: function
+        :type add_comments: bool
+        :type comments_limit: int
+        :type add_timecodes: bool
         :rtype: list
         """
         self.result_raw = None
 
         assert type(videoIDs) in (list, tuple, set, str)
-        
+        assert comments_limit <= 100
+
         if fields in ('','*'):
             fields = '*'
         elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
@@ -473,6 +481,21 @@ class YoutubeApi():
             url = 'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}' \
                   '&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'ids': ids,'maxResults': maxResults, 'API_KEY': self.ApiKey})
             content = self.download_yt_json(url)
+
+            if add_comments or find_timecodes:
+                for item in content['items']:
+                    videoId = item['id']
+                    comments = self.get_comments(videoId=videoId, limit=comments_limit)
+                    if add_comments:
+                        item['comments'] = comments
+                    if add_timecodes:
+                        for comment in comments:
+                            comment_text = comment['snippet']['topLevelComment']['snippet']['textOriginal']
+                            item['timecodes'] = ''
+                            if re.search('\d{1,2}:\d{2}.*\d{1,2}:\d{2}', comment_text, re.MULTILINE | re.DOTALL):
+                                item['timecodes'] = utils.clean_text(comment_text)
+                                break
+
             res.extend(content['items'])
             
             if page_handler:
@@ -492,10 +515,14 @@ class YoutubeApi():
         return res
     
     def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=50,
-                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None):
+                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None,
+                   add_comments=False, comments_limit=100, add_timecodes=False):
         """
         Получение списка видео с канала (channelId), плейлиста (playlistId) или по поиску (q)
         (cost=100/страницу + при fullInfo=True 3*каждый параметр)
+
+        Формат ф-ции обратного вызова:
+            def my_page_handler(content, content_raw, yt_params, params)
 
         :param q: Поисковая строка
         :param channelId: ID канала
@@ -508,6 +535,11 @@ class YoutubeApi():
         :param order: Сортировка 'date','rating','relevance','title','videoCount','viewCount'
         :param fullInfo: Получать ли полную информацию (
         :param page_handler: Ф-ция вызываемая после каждого youtube запроса (постраничного)
+        :param add_comments: Получать комментарии (работает только если включен параметр fullInfo)
+        :param comments_limit: Максимальное кол-во получаемых комментариев. Поддерживается максимум 100
+        :param add_timecodes: Искать таймкоды в комментариях. Ищется первый комментарий в котором хотябы 2 раза
+            повторяется время "8:12 любой текст \n20:25"
+            (работает только если включен параметр fullInfo)
         :return: Список видео
         :type q: str
         :type channelId: str
@@ -584,7 +616,7 @@ class YoutubeApi():
                     ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
                 else:
                     ids = [x['id']['videoId'] for x in content['items']]
-                videos = self.get_videos_info(ids, fields=fields_full, part=part_new)
+                videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments, comments_limit=comments_limit, add_timecodes=add_timecodes)
                 res.extend(videos)
             else:
                 res.extend(content['items'])

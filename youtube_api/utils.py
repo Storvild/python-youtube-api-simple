@@ -183,7 +183,7 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
     delta_list = []
     if partion_by=='day':
         # Первый день
-        fromdate_part_begin = fromdate 
+        fromdate_part_begin = fromdate
         todate_part_begin = min(fromdate + relativedelta(hour=23, minute=59, second=59, microsecond=0), todate)
         delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
         #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
@@ -219,7 +219,7 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
             todate_part_end = todate.replace(microsecond=0) #+ relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
             delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
             #print(fromdate_part_end, '-', todate_part_end, 'END')
-           
+
     elif partion_by=='year':
         # Первый год
         fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
@@ -227,7 +227,7 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
         delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
         #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
         for i in range(fromdate.year+1, todate.year):
-            fromdate_part = fromdate + relativedelta(year=i, month=1, day=1, hour=0, minute=0, second=0, microsecond=0) 
+            fromdate_part = fromdate + relativedelta(year=i, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
             todate_part = fromdate + relativedelta(year=i, month=12, day=31, hour=23, minute=59, second=59, microsecond=0)
             delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
             #print(fromdate_part, '-', todate_part)
@@ -248,7 +248,7 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
             todate_part = (fromdate.replace(microsecond=0) + i*delta_by_part + delta_by_part - timedelta(seconds=1)).replace(microsecond=0)
             delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
             #print(i, fromdate_part, '-', todate_part)
-    
+
     return delta_list
 
 
@@ -264,7 +264,7 @@ def truncatechars(text, length, onestring=True):
     :type length: int
     :type onestring: bool
     :rtype: str
-    
+
     Примеры:
         truncatechars('Длинный текст', 8, onestring=True) -> 'Длинн...'
     """
@@ -276,6 +276,29 @@ def truncatechars(text, length, onestring=True):
         res = text
     return res
 
+
+def clean_text(text, replace_newline='\n'):
+    """
+
+    :param text: Текст содержащий спецсимволы
+    :return: Текст без спецсимволов
+    :type text: str
+    :rtype: str
+    """
+    rus_chars = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЪЫЭЮЯабвгдеёжзийклмнопрстуфхцчшщьъыэюя'
+    eng_chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    number_chars = '0123456789'
+    sign_chars = ' `~!@#$%^&*()_+=-/\\|?.,"№;:'
+    spec_chars = '\n'
+    legal_char = rus_chars + eng_chars + sign_chars + number_chars + spec_chars
+    res = ''
+    for char in text:
+        if char in legal_char:
+            res += char
+        # else:
+        #     res += '?'
+    res = res.replace('\n', replace_newline)
+    return res
 
 if __name__ == '__main__':
     pass

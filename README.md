@@ -66,6 +66,18 @@ videos = yt.get_videos(q='квн', limit=10, order='date')
 videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True)
 ```
 
+#### Получить список видео с полной информацией и с комментариями (максимум по 100 к каждому видео)
+```python    
+videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True, add_comments=True, comments_limit=100)
+```
+
+#### Получить список видео с полной информацией и с поиском комментария с таймкодами.
+Найденный комментарий будет добавлен в результирующую структуру к каждому видео в виде записи с ключом 'timecodes'
+```python    
+videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True, 
+                       add_comments=False, comments_limit=100, add_timecodes=True)
+```
+
 #### Получить список видео с полной информацией о видео с определенными полями
 ```python    
 videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True,
