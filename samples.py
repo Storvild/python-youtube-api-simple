@@ -28,13 +28,11 @@ def load_json(filename):
         return json.load(f)
 
 
-
-
 def get_channels_test():
     # Получение каналов по названию
     # Может потребоваться для получения id канала
     # Id канала будет в item['id']['channelId']
-    channels = yt.get_channels('квн', limit=3)
+    channels = yt.get_channels('StandUpCommunity', limit=30)
     # Получить каналы в которых будут указаны определенные поля
     #channels = yt.get_channels('квн', fields='nextPageToken,items(id,snippet(title,channelId,channelTitle,description,publishedAt))', limit=3)
     #channels = yt.get_channels('квн', fields='id,snippet(title,channelId,channelTitle,description,publishedAt)', limit=3)
@@ -42,7 +40,7 @@ def get_channels_test():
     #print('Найденные каналы:')
     #save_json('channels.json', channels)
     pprint(channels)
-    pprint(yt.result_simple)
+    #pprint(yt.result_simple)
     
 
 #get_channels_test()
@@ -266,7 +264,7 @@ def get_videos_test():
     pass
 
 def from_main():
-
+    pass
 
     # data = yt.get_comments(videoId='SMnI97CI-G8', fields='*', limit=10, order='relevance', textFormat='html')
     # pprint(data)
@@ -340,6 +338,7 @@ def from_main():
 
 
 if __name__ == '__main__':
+
     # _get_delta_list_test()
     #get_comments_test()
     #_result_parse_test()
@@ -350,4 +349,5 @@ if __name__ == '__main__':
     #_correct_part_test()
     get_channels_test()
     #get_playlists_test()
+
     pass

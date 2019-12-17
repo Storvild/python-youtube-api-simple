@@ -39,10 +39,13 @@ class YoutubeItem():
         #self.channelTitle
         self.description = description
         #self.raw = None
+
     def __str__(self):
         return '{} {} {} {} {}'.format(self.type, self.code, self.title, self.description, self.publishedAt)
+
     def __repr__(self):
-        return '{} {:15} {:30} {:20} {}'.format(self.type, utils.truncatechars(self.code,15), utils.truncatechars(self.title,30), utils.truncatechars(self.description,20), self.publishedAt)
+        return '{} {:15} {:30} {:20} {}'.format(self.type, utils.truncatechars(self.code, 15), utils.truncatechars(self.title,30), utils.truncatechars(self.description,20), self.publishedAt)
+
 
 class YoutubeException(Exception):
     """ Класс исключения который вызывается, если получена ошибка Youtube в виде json:
