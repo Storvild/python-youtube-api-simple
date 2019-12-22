@@ -8,12 +8,6 @@ import re
 from . import utils
 #import utils
 
-def _clean_url(url):
-    """ Очистка URL от API_KEY """
-    res = re.sub(r'[&]key=[^&]+', '', url)
-    res = re.sub(r'[?]key=[^&]+&?', '?', res)
-    return res
-
 
 class YoutubeItem():
     def __init__(self, code, type, title, publishedAt, description=''):
@@ -62,7 +56,7 @@ class YoutubeException(Exception):
         self.message = message
         self.response_status = response_content['error']['code']
         self.response_content = response_content
-        self.response_url = _clean_url(response_url)
+        self.response_url = YoutubeException._clean_url(response_url)
         self.page_token = page_token
         self.error_raw = response_content
         self.domain = ''
@@ -84,11 +78,21 @@ class YoutubeException(Exception):
                 self.reason = response_content['error']['errors'][0]['reason']
                 if self.reason == 'keyInvalid':
                     self.message = 'Не верный ключ API_KEY'
+                elif self.reason == 'commentsDisabled':
+                    self.message = 'Комментарии отключены к данному видео'
+
+    @staticmethod
+    def _clean_url(url):
+        """ Очистка URL от API_KEY """
+        res = re.sub(r'[&]key=[^&]+', '', url)
+        res = re.sub(r'[?]key=[^&]+&?', '?', res)
+        return res
 
     def __str__(self):
         return '{}: {}\nSTATUS: {}\nJSON: {}\nURL: {}\nPageToken: {}'.format(self.message, self.error_msg, self.response_status, self.response_content, self.response_url, self.page_token)
 
-
+    def __repr__(self):
+        return '{}: {}\nSTATUS: {}\nJSON: {}\nURL: {}\nPageToken: {}'.format(self.message, self.error_msg, self.response_status, self.response_content, self.response_url, self.page_token)
 
 
 class YoutubeApi():
@@ -103,6 +107,13 @@ class YoutubeApi():
         self.result_raw = None  # Оригинальный результат в виде структуры json
         self.timeout = 0.2  # Пауза между запросами
 
+    @staticmethod
+    def _clean_url(url):
+        """ Очистка URL от API_KEY """
+        res = re.sub(r'[&]key=[^&]+', '', url)
+        res = re.sub(r'[?]key=[^&]+&?', '?', res)
+        return res
+
     def download_yt_json(self, url, pageToken=''):
         """
         Загрузка json из Youtube API (www.googleapis.com)
@@ -114,6 +125,7 @@ class YoutubeApi():
         :return: Объект json
         Преобразует ошибки Youtube из json в исключение YoutubeException
         """
+
         if pageToken!='':
             url += '&pageToken={}'.format(pageToken)
         
@@ -275,7 +287,7 @@ class YoutubeApi():
             res.extend(content['items'])
 
             if page_handler:
-                yt_url = '{}&pageToken={}'.format(_clean_url(url), pageToken)
+                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
                 yt_params = {'url': yt_url, 'part': snippet, 'fields': fields, 'q': q, 'pageToken': pageToken,
                              'maxResults': maxResults, 'type': 'channel', 'order': order}
                 params = {'i': i, 'limit': limit}
@@ -331,7 +343,7 @@ class YoutubeApi():
             res.extend(content['items'])
 
             if page_handler:
-                yt_url = '{}&pageToken={}'.format(_clean_url(url), pageToken)
+                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
                 yt_params = {'url': yt_url, 'type': 'playlist', 'channelId': channelId, 'part': part,
                              'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults, 'order': order}
                 params = {'i': i, 'limit': limit}
@@ -401,7 +413,7 @@ class YoutubeApi():
             res.extend(content['items'])
 
             if page_handler:
-                yt_url = '{}&pageToken={}'.format(_clean_url(url), pageToken)
+                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
                 yt_params = {'url': yt_url, 'id': id, 'videoId': videoId, 'parentId': parentId,
                              'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults,
                              'order': order, 'textFormat': textFormat}
@@ -485,24 +497,32 @@ class YoutubeApi():
                   '&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'ids': ids,'maxResults': maxResults, 'API_KEY': self.ApiKey})
             content = self.download_yt_json(url)
 
-            if add_comments or find_timecodes:
+            if add_comments or add_timecodes:
                 for item in content['items']:
                     videoId = item['id']
-                    comments = self.get_comments(videoId=videoId, limit=comments_limit)
+                    # Иниациализация полей комментариев и таймкодов
                     if add_comments:
-                        item['comments'] = comments
+                        item['comments'] = []
                     if add_timecodes:
-                        for comment in comments:
-                            comment_text = comment['snippet']['topLevelComment']['snippet']['textOriginal']
-                            item['timecodes'] = ''
-                            if re.search('\d{1,2}:\d{2}.*\d{1,2}:\d{2}', comment_text, re.MULTILINE | re.DOTALL):
-                                item['timecodes'] = utils.clean_text(comment_text)
-                                break
+                        item['timecodes'] = ''
+                    try:
+                        comments = self.get_comments(videoId=videoId, limit=comments_limit)
+                        if add_comments:
+                            item['comments'] = comments
+                        if add_timecodes:
+                            for comment in comments:
+                                comment_text = comment['snippet']['topLevelComment']['snippet']['textOriginal']
+                                item['timecodes'] = ''
+                                if re.search('\d{1,2}:\d{2}.*\d{1,2}:\d{2}', comment_text, re.MULTILINE | re.DOTALL):
+                                    item['timecodes'] = utils.clean_text(comment_text)
+                                    break
+                    except:
+                        pass
 
             res.extend(content['items'])
             
             if page_handler:
-                yt_url = '{}&pageToken={}'.format(_clean_url(url), pageToken)
+                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
                 yt_params = {'url': yt_url, 'id': ids, 'part': part, 'fields': fields, 'pageToken': pageToken,
                              'maxResults': maxResults}
                 params = {'i': i, 'limit': limit}
@@ -517,7 +537,7 @@ class YoutubeApi():
 
         return res
     
-    def get_videos(self, q='', channelId='', playlistId='', fromdate=None, todate=None, limit=50,
+    def get_videos(self, q='', channelId='', playlistId='', videoId='', fromdate=None, todate=None, limit=50,
                    part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None,
                    add_comments=False, comments_limit=100, add_timecodes=False):
         """
@@ -538,10 +558,10 @@ class YoutubeApi():
         :param order: Сортировка 'date','rating','relevance','title','videoCount','viewCount'
         :param fullInfo: Получать ли полную информацию (
         :param page_handler: Ф-ция вызываемая после каждого youtube запроса (постраничного)
-        :param add_comments: Получать комментарии (работает только если включен параметр fullInfo)
+        :param add_comments: Получать комментарии (работает только если включен параметр fullInfo) По умолчанию False
         :param comments_limit: Максимальное кол-во получаемых комментариев. Поддерживается максимум 100
         :param add_timecodes: Искать таймкоды в комментариях. Ищется первый комментарий в котором хотябы 2 раза
-            повторяется время "8:12 любой текст \n20:25"
+            повторяется время. Пример: "8:12 любой текст \n20:25"
             (работает только если включен параметр fullInfo)
         :return: Список видео
         :type q: str
@@ -555,11 +575,22 @@ class YoutubeApi():
         :type order: str
         :type fullInfo: bool
         :type page_handler: function
+        :type add_comments: bool
+        :type comments_limit: int
+        :type add_timecodes: str
         :rtype: list
         """
         self.result_raw = None
 
         assert channelId != 0 or playlistId != 0
+
+        # Если передан videoId с одним или несколькими кодами, то выполнить метод get_videos_info и вернуть результат
+        if videoId:
+            if not fullInfo:
+                part = 'id,snippet'
+            res = self.get_videos_info(videoId, fields, part, limit, page_handler, add_comments, comments_limit, add_timecodes)
+            return res
+
 
         part_main = 'id,snippet'
         if fullInfo:
@@ -625,7 +656,7 @@ class YoutubeApi():
                 res.extend(content['items'])
 
             if page_handler:
-                yt_url = '{}&pageToken={}'.format(_clean_url(url), pageToken)
+                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
                 yt_params = {'url': yt_url, 'q': q, 'channelId': channelId, 'playlistId': playlistId,
                              'fromdate': fromdate, 'todate':todate, 'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults}
                 params = {'i': i, 'limit': limit}
@@ -643,8 +674,8 @@ class YoutubeApi():
         return res
 
     def get_videos_partion(self, fromdate, todate, q='', channelId='', playlistId='', limit=50,
-                           part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None,
-                           partion_by=1):
+                           part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False,
+                           page_handler=None, partion_by=1, add_comments=False, comments_limit=100, add_timecodes=False):
         """
         Получение списка видео по поисковому запросу, ID канала или ID плейлиста, запрашивая результат по частям
             в зависимости от partition_by
@@ -662,6 +693,11 @@ class YoutubeApi():
         :param page_handler: Ф-ция вызываемая после каждого youtube запроса (постраничного)
         :param partion_by: На сколько частей делить период fromdate/todate или по каким периодам получать данные с
                 Youtube 'day' | 'month' | 'year' (Полезно если видео очень много и Youtube урезает результат)
+        :param add_comments: Получать комментарии (работает только если включен параметр fullInfo)
+        :param comments_limit: Максимальное кол-во получаемых комментариев. Поддерживается максимум 100
+        :param add_timecodes: Искать таймкоды в комментариях. Ищется первый комментарий в котором хотябы 2 раза
+            повторяется время. Пример: "8:12 любой текст \n20:25"
+            (работает только если включен параметр fullInfo)
         :return: Список видео
         :type fromdate: datetime.datetime|str
         :type todate: datetime.datetime|str
@@ -677,12 +713,14 @@ class YoutubeApi():
         :type partion_by: int|str
         :rtype: list
         """
+
         datepart_list = utils.date_period_into_parts(fromdate, todate, partion_by=partion_by)
         res = []
         for datepart in datepart_list:
             p = self.get_videos(q=q, channelId=channelId, playlistId=playlistId, limit=limit, part=part, fields=fields,
                                 fromdate=datepart['fromdate'], todate=datepart['todate'],  order=order,
-                                fullInfo=fullInfo, page_handler=page_handler)
+                                fullInfo=fullInfo, page_handler=page_handler,
+                                add_comments=add_comments, comments_limit=comments_limit, add_timecodes=add_timecodes)
             res.extend(p)
             time.sleep(self.timeout)
 

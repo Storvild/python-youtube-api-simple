@@ -1,6 +1,6 @@
 import unittest
 from youtube_api import utils
-from youtube_api.youtube_api_v3 import YoutubeApi
+from youtube_api.youtube_api_v3 import YoutubeApi, YoutubeException
 from datetime import datetime, timedelta
 from pprint import pprint
 
@@ -45,7 +45,6 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.ytdate_to_timedelta('PT2H16M36S'), timedelta(0, 8196))  # 2:16:36
         self.assertEqual(utils.ytdate_to_timedelta('P10DT2H16M36S'), timedelta(10, 8196))  # 10days, 2:16:36
 
-
     def _test_download_exception(self):
         self.assertRaises(utils.DownloadException, utils.download_json, 'http://ya.ru/')
         try:
@@ -77,11 +76,11 @@ class TestYoutubeApi(unittest.TestCase):
 
 
     def test__clean_url(self):
-        from youtube_api.youtube_api_v3 import _clean_url
-        self.assertEqual(_clean_url('http://mysite.com/page?key=123&part=snippet'), 'http://mysite.com/page?part=snippet')
-        self.assertEqual(_clean_url('http://mysite.com/page?key=123'), 'http://mysite.com/page?')
-        self.assertEqual(_clean_url('http://mysite.com/page?fields=*&key=123'), 'http://mysite.com/page?fields=*')
-        self.assertEqual(_clean_url('http://mysite.com/page?fields=*&key=123&part=id'), 'http://mysite.com/page?fields=*&part=id')
+        #from youtube_api.youtube_api_v3 import _clean_url
+        self.assertEqual(YoutubeApi._clean_url('http://mysite.com/page?key=123&part=snippet'), 'http://mysite.com/page?part=snippet')
+        self.assertEqual(YoutubeApi._clean_url('http://mysite.com/page?key=123'), 'http://mysite.com/page?')
+        self.assertEqual(YoutubeApi._clean_url('http://mysite.com/page?fields=*&key=123'), 'http://mysite.com/page?fields=*')
+        self.assertEqual(YoutubeApi._clean_url('http://mysite.com/page?fields=*&key=123&part=id'), 'http://mysite.com/page?fields=*&part=id')
 
     #def test_fail(self):
     #    self.fail('Ошибка теста')
@@ -140,6 +139,17 @@ class TestYoutubeApi(unittest.TestCase):
         obj = self.yt.get_comments(videoId='Dy17RExwe8E')
         self.assertGreaterEqual(len(obj), 1)
         self.assertEqual(obj[0]['snippet']['topLevelComment']['snippet']['videoId'], 'Dy17RExwe8E')
+
+    def _test_get_comments_off(self):
+        """ Тест получения комментариев к видео, у которых они отключены """
+        try:
+            obj = self.yt.get_comments(videoId='mg7OTHfdDMc')
+        except YoutubeException as e:
+            self.assertEqual(e.response_status, 403)
+
+
+#        self.assertGreaterEqual(len(obj), 1)
+#        self.assertEqual(obj[0]['snippet']['topLevelComment']['snippet']['videoId'], 'Dy17RExwe8E')
 
 
 if __name__ == '__main__':

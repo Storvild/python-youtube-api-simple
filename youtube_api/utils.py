@@ -179,6 +179,12 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
     #assert partion_by in (None, '', 'day', 'month', 'year')
     assert partion_by != 0
 
+    #if type(fromdate) == str:
+    #    fromdate = datetime.strptime(item['snippet']['publishedAt'], '%Y-%m-%dT%H:%M:%S.%fZ')
+    #    fromdate = datetime.strptime(fromdate, '%')        #            published += '&publishedAfter={}Z'.format(fromdate.replace(microsecond=0).isoformat(sep='T'))
+    #if type(todate) == str:
+    #    todate = todate
+
     #print(fromdate,todate)
     delta_list = []
     if partion_by=='day':
