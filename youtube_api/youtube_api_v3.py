@@ -1,9 +1,5 @@
-import requests
-import json
-from pprint import pprint
-from datetime import datetime, timedelta
 import time
-from dateutil.relativedelta import relativedelta
+import datetime
 import re
 from . import utils
 #import utils
@@ -96,7 +92,7 @@ class YoutubeException(Exception):
 
 
 class YoutubeApi():
-    def __init__(self, ApiKey):
+    def __init__(self, ApiKey, timeout=0.2):
         """
         Класс для получения данных о видео, видео канала, плейлиста и т.д.
         :param ApiKey: API_KEY от Google
@@ -105,7 +101,7 @@ class YoutubeApi():
         assert ApiKey != '', 'YoutubeApi: Необходимо указать KEY_API'
         self.ApiKey = ApiKey
         self.result_raw = None  # Оригинальный результат в виде структуры json
-        self.timeout = 0.2  # Пауза между запросами
+        self.timeout = timeout  # Пауза между запросами
 
     @staticmethod
     def _clean_url(url):
@@ -467,7 +463,7 @@ class YoutubeApi():
         :type fields:  str
         :type part:  str
         :type limit: int
-        :type page_handler: function
+        :type page_handler: function(content: list, content_raw: dict, yt_params: dict, params: dict)
         :type add_comments: bool
         :type comments_limit: int
         :type add_timecodes: bool
@@ -522,8 +518,8 @@ class YoutubeApi():
             res.extend(content['items'])
             
             if page_handler:
-                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
-                yt_params = {'url': yt_url, 'id': ids, 'part': part, 'fields': fields, 'pageToken': pageToken,
+                yt_url = '{}'.format(YoutubeApi._clean_url(url))
+                yt_params = {'url': yt_url, 'id': ids, 'part': part, 'fields': fields, 'pageToken': '',
                              'maxResults': maxResults}
                 params = {'i': i, 'limit': limit}
                 do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
@@ -538,7 +534,8 @@ class YoutubeApi():
         return res
     
     def get_videos(self, q='', channelId='', playlistId='', videoId='', fromdate=None, todate=None, limit=50,
-                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None,
+                   part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False,
+                   page_handler=None, video_handler=None,
                    add_comments=False, comments_limit=100, add_timecodes=False):
         """
         Получение списка видео с канала (channelId), плейлиста (playlistId) или по поиску (q)
@@ -558,6 +555,15 @@ class YoutubeApi():
         :param order: Сортировка 'date','rating','relevance','title','videoCount','viewCount'
         :param fullInfo: Получать ли полную информацию (
         :param page_handler: Ф-ция вызываемая после каждого youtube запроса (постраничного)
+            Параметры:  content - Список словарей с данными Youtube
+                        content_raw - Полученный из Youtube необработанный json (словарь с вложенным списком видео)
+                        yt_params - Словарь с параметрами передаваемыми в запросе youtube + url
+                        params - Параметры i, limit с внутренними данными (индекс итерации и лимит получения)
+        :param video_handler: Ф-ция вызываемая после каждого запроса подробной информации по видео или набору видео
+            Параметры:  content - Список словарей с данными Youtube
+                        content_raw - Полученный из Youtube необработанный json (словарь с вложенным списком видео)
+                        yt_params - Словарь с параметрами передаваемыми в запросе youtube + url
+                        params - Параметры i, limit с внутренними данными (индекс итерации и лимит получения)
         :param add_comments: Получать комментарии (работает только если включен параметр fullInfo) По умолчанию False
         :param comments_limit: Максимальное кол-во получаемых комментариев. Поддерживается максимум 100
         :param add_timecodes: Искать таймкоды в комментариях. Ищется первый комментарий в котором хотябы 2 раза
@@ -574,10 +580,11 @@ class YoutubeApi():
         :type fields: str
         :type order: str
         :type fullInfo: bool
-        :type page_handler: function
+        :type page_handler: function(list, dict, dict, dict)
+        :type video_handler: function(list, dict, dict, dict)
         :type add_comments: bool
         :type comments_limit: int
-        :type add_timecodes: str
+        :type add_timecodes: bool
         :rtype: list
         """
         self.result_raw = None
@@ -588,7 +595,17 @@ class YoutubeApi():
         if videoId:
             if not fullInfo:
                 part = 'id,snippet'
-            res = self.get_videos_info(videoId, fields, part, limit, page_handler, add_comments, comments_limit, add_timecodes)
+            res = self.get_videos_info(videoId, fields, part, limit, video_handler, add_comments, comments_limit, add_timecodes)
+            if page_handler:
+                if type(videoId) == list:
+                    videoId = ','.join(videoId)
+                yt_url = 'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}' \
+                          '&maxResults={maxResults}'.format(**{'part': part, 'fields': fields, 'ids': videoId,
+                                                               'maxResults': 50})
+                yt_params = {'url': yt_url, 'q': '', 'channelId': '', 'playlistId': '', 'videoId': videoId,
+                             'fromdate': fromdate, 'todate': todate, 'part': part, 'fields': fields, 'pageToken': '',
+                             'maxResults': 50}
+                page_handler(content=res, content_raw=res, yt_params=yt_params, params={})
             return res
 
 
@@ -611,11 +628,15 @@ class YoutubeApi():
         if fromdate:
             if type(fromdate) == str:
                 published += f'&publishedAfter={fromdate}' #2019-01-01T00:00:00Z
+            elif type(fromdate) == datetime.date:
+                published += '&publishedAfter={}Z'.format(datetime.datetime.fromordinal(fromdate.toordinal()).replace(microsecond=0).isoformat(sep='T'))  # 2019-01-01T00:00:00Z
             else:
                 published += '&publishedAfter={}Z'.format(fromdate.replace(microsecond=0).isoformat(sep='T'))
         if todate:
             if type(todate) == str:
                 published += f'&publishedBefore={todate}' #2019-12-31T23:59:59Z
+            elif type(todate) == datetime.date:
+                published += '&publishedAfter={}Z'.format(datetime.datetime.fromordinal(todate.toordinal()).replace(microsecond=0).isoformat(sep='T'))  # 2019-01-01T00:00:00Z
             else:
                 published += '&publishedBefore={}Z'.format(todate.replace(microsecond=0).isoformat(sep='T'))
 
@@ -650,7 +671,9 @@ class YoutubeApi():
                     ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
                 else:
                     ids = [x['id']['videoId'] for x in content['items']]
-                videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments, comments_limit=comments_limit, add_timecodes=add_timecodes)
+                videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments,
+                                              comments_limit=comments_limit, add_timecodes=add_timecodes,
+                                              page_handler=video_handler)
                 res.extend(videos)
             else:
                 res.extend(content['items'])
@@ -691,6 +714,10 @@ class YoutubeApi():
         :param order: Сортировка 'date','rating','relevance','title','videoCount','viewCount'
         :param fullInfo: Получать ли полную информацию (
         :param page_handler: Ф-ция вызываемая после каждого youtube запроса (постраничного)
+            Параметры:  content - Список словарей с данными Youtube
+                        content_raw - Полученный из Youtube необработанный json (словарь с вложенным списком видео)
+                        yt_params - Словарь с параметрами передаваемыми в запросе youtube + url
+                        params - Параметры i, limit с внутренними данными (индекс итерации и лимит получения)
         :param partion_by: На сколько частей делить период fromdate/todate или по каким периодам получать данные с
                 Youtube 'day' | 'month' | 'year' (Полезно если видео очень много и Youtube урезает результат)
         :param add_comments: Получать комментарии (работает только если включен параметр fullInfo)
@@ -731,6 +758,11 @@ class YoutubeApi():
 
 if __name__ == '__main__':
     from pprint import pprint
-    from datetime import datetime
+    #from datetime import datetime
     yt = YoutubeApi('123')
     help(YoutubeApi)
+
+
+# WISH
+# Пометка удаленных видео
+# Пропуск ошибок
