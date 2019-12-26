@@ -106,6 +106,24 @@ def ytdate_to_str(ytdate):
     return res
 
 
+def sec_to_str(sec):
+    """
+    Преобразование секунд в форматированное время 01:59 или 01:23:59 если есть часы
+    :param sec:
+    :type sec:
+    :return:
+    :rtype:
+    """
+    h = ((sec // 3600)) % 24
+    m = (sec // 60) % 60
+    s = sec % 60
+    if h > 0:
+        res = '{0}:{1:=02}:{2:=02}'.format(h, m, s)
+    else:
+        res = '{1:=02}:{2:=02}'.format(h, m, s)
+    return res
+
+
 def save_json(filename, content, format=True, encoding='utf-8'):
     """ Сохранение json данных в файл 
         :param filename: Имя файла

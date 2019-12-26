@@ -61,6 +61,11 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.clean_text('Лайк,\nкак всегда! 👍😊, Another text!'), 'Лайк,\nкак всегда! , Another text!')
         self.assertEqual(utils.clean_text('Лайк,\nкак всегда! 👍😊, Another text!', replace_newline=' '), 'Лайк, как всегда! , Another text!')
 
+    def test_sec_to_str(self):
+        self.assertEqual(utils.sec_to_str(70), '01:10')
+        self.assertEqual(utils.sec_to_str(3685), '1:01:25')
+        self.assertEqual(utils.sec_to_str(83685), '1:01:25')
+        
 
 def videos_partion_handler(content, content_raw, yt_params, params):
     print('i =', params['i'], 'limit=', params['limit'], 'pageToken=', yt_params['pageToken'], 'maxResults=',
