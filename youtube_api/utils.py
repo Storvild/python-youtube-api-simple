@@ -191,13 +191,6 @@ def datetime_start_of_month(indatetime):
         indatetime = date_to_datetime(indatetime)
     return indatetime.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-# def date_last_day2(year, month):
-    # import datetime
-    # if month == 12:
-        # res = datetime.date(year, month, 31)
-    # else:
-        # res = datetime.date(year, month+1, 1) - datetime.timedelta(days=1)
-    # return res
 
 def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=None
     """
@@ -207,8 +200,8 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
     :param partion_by: Количество частей на которые необходимо поделить период или
                         деление по дням, месяцам, годам 'year|month|day'
     :return: Список словарей с периодом fromdate, todate
-    :type fromdate: datetime.datetime
-    :type todate: datetime.datetime
+    :type fromdate: datetime.datetime|datetime.date
+    :type todate: datetime.datetime|datetime.date
     :rtype: list
 
     Пример:
@@ -222,12 +215,17 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
         2019-09-01 00:00:00 - 2019-09-30 23:59:59
         2019-10-01 00:00:00 - 2019-10-31 23:59:59
     """
-
-    from datetime import timedelta
-    from dateutil.relativedelta import relativedelta
+    import datetime
+    #from datetime import timedelta
+    #from dateutil.relativedelta import relativedelta
     #assert partion_by in (None, '', 'day', 'month', 'year')
     assert partion_by != 0
-
+    if type(fromdate) == datetime.date:
+        fromdate = date_to_datetime(fromdate)
+    if type(todate) == datetime.date:
+        todate = date_to_datetime(todate).replace(hour=23, minute=59, second=59)
+    fromdate = fromdate.replace(microsecond=0)
+    todate = todate.replace(microsecond=0)
     #if type(fromdate) == str:
     #    fromdate = datetime.strptime(item['snippet']['publishedAt'], '%Y-%m-%dT%H:%M:%S.%fZ')
     #    fromdate = datetime.strptime(fromdate, '%')        #            published += '&publishedAfter={}Z'.format(fromdate.replace(microsecond=0).isoformat(sep='T'))
@@ -239,59 +237,55 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
     if partion_by=='day':
         # Первый день
         fromdate_part_begin = fromdate
-        todate_part_begin = min(fromdate + relativedelta(hour=23, minute=59, second=59, microsecond=0), todate)
-        delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
-        #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
-        delta = todate - fromdate
-        days = delta.days if delta.seconds==0 else delta.days+1
-        for i in range(1,days-1):
-            fromdate_part = fromdate.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=i)
-            todate_part = fromdate.replace(hour=23, minute=59, second=59, microsecond=0) + timedelta(days=i)
-            delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
+        todate_part_begin = min(fromdate.replace(hour=23, minute=59, second=59), todate)
+        delta_list.append({'fromdate': fromdate_part_begin, 'todate': todate_part_begin})
+        # Следующие дни
+        fromdate_part = todate_part_begin + datetime.timedelta(seconds=1)
+        while fromdate_part < todate.replace(hour=0, minute=0, second=0):
+            todate_part = fromdate_part.replace(hour=23, minute=59, second=59)
+            delta_list.append({'fromdate': fromdate_part, 'todate': todate_part})
+            fromdate_part = todate_part + datetime.timedelta(seconds=1)
         # Последний день
-        if delta_list[-1]['todate']  < todate.replace(microsecond=0):
-            fromdate_part_end = (todate + relativedelta(hour=0, minute=0, second=0)).replace(microsecond=0)
-            todate_part_end = todate.replace(microsecond=0) #+ relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
-            delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
-            #print(fromdate_part_end, '-', todate_part_end, 'END')
+        if delta_list[-1]['todate'] < todate:
+            fromdate_part_end = delta_list[-1]['todate'] + datetime.timedelta(seconds=1)
+            todate_part_end = todate
+            delta_list.append({'fromdate': fromdate_part_end, 'todate': todate_part_end})
 
     elif partion_by=='month':
         # Первый месяц
-        fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
-        todate_part_begin = min(fromdate + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0), todate)
-        delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
-
-        fromdate_part = todate_part_begin + timedelta(seconds=1)
-        while fromdate_part < todate.replace(day=1,hour=0,minute=0,second=0,microsecond=0):
-            #print(fromdate_part, todate.replace(hour=0,minute=0,second=0,microsecond=0))
-            todate_part = fromdate_part + relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
-            delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-            fromdate_part = (fromdate_part + timedelta(days=31)).replace(day=1)
-
+        fromdate_part_begin = fromdate
+        todate_part_begin = min(datetime_end_of_month(fromdate), todate)
+        delta_list.append({'fromdate': fromdate_part_begin, 'todate': todate_part_begin})
+        # Следующие месяцы
+        fromdate_part = todate_part_begin + datetime.timedelta(seconds=1)
+        while fromdate_part < todate.replace(day=1, hour=0, minute=0, second=0):
+            todate_part = datetime_end_of_month(fromdate_part)
+            delta_list.append({'fromdate': fromdate_part, 'todate': todate_part})
+            fromdate_part = todate_part + datetime.timedelta(seconds=1)
         # Последний месяц
-        if delta_list[-1]['todate']  < todate.replace(microsecond=0):
-            fromdate_part_end = (todate + relativedelta(day=1, hour=0, minute=0, second=0)).replace(microsecond=0)
-            todate_part_end = todate.replace(microsecond=0) #+ relativedelta(day=31, hour=23, minute=59, second=59, microsecond=0)
-            delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
-            #print(fromdate_part_end, '-', todate_part_end, 'END')
+        if delta_list[-1]['todate']  < todate.replace():
+            fromdate_part_end = delta_list[-1]['todate'] + datetime.timedelta(seconds=1)
+            todate_part_end = todate
+            delta_list.append({'fromdate': fromdate_part_end, 'todate': todate_part_end})
 
     elif partion_by=='year':
         # Первый год
-        fromdate_part_begin = fromdate # + relativedelta(hour=0, minute=0, second=0)
-        todate_part_begin = min(fromdate + relativedelta(month=12, day=31, hour=23, minute=59, second=59, microsecond=0), todate)
+        fromdate_part_begin = fromdate
+        todate_part_begin = min(fromdate.replace(month=12, day=31, hour=23, minute=59, second=59), todate)
         delta_list.append({'fromdate':fromdate_part_begin, 'todate':todate_part_begin})
         #print(fromdate_part_begin, '-', todate_part_begin, 'BEGIN')
-        for i in range(fromdate.year+1, todate.year):
-            fromdate_part = fromdate + relativedelta(year=i, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-            todate_part = fromdate + relativedelta(year=i, month=12, day=31, hour=23, minute=59, second=59, microsecond=0)
-            delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-            #print(fromdate_part, '-', todate_part)
+        # Следующие года
+        fromdate_part = todate_part_begin + datetime.timedelta(seconds=1)
+        while fromdate_part < todate.replace(month=1, day=1,hour=0,minute=0,second=0):
+            todate_part = fromdate_part.replace(month=12, day=31,hour=23,minute=59,second=59)
+            delta_list.append({'fromdate': fromdate_part, 'todate': todate_part})
+            fromdate_part = todate_part + datetime.timedelta(seconds=1)
         # Последний год
-        if delta_list[-1]['todate']  < todate.replace(microsecond=0):
-            fromdate_part_end = (todate + relativedelta(month=1, day=1, hour=0, minute=0, second=0)).replace(microsecond=0)
-            todate_part_end = todate.replace(microsecond=0)
-            delta_list.append({'fromdate':fromdate_part_end, 'todate':todate_part_end})
-            #print(fromdate_part_end, '-', todate_part_end, 'END')
+        if delta_list[-1]['todate']  < todate:
+            fromdate_part_end = todate.replace(month=1, day=1, hour=0, minute=0, second=0)
+            todate_part_end = todate
+            delta_list.append({'fromdate': fromdate_part_end, 'todate': todate_part_end})
+
     elif type(partion_by) == int and partion_by>0:
         delta = todate - fromdate
         delta_by_part = delta/partion_by
@@ -299,8 +293,8 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
         #print('Всего дней:', delta)
         #print('Дней на часть:', delta_by_part)
         for i in range(partion_by):
-            fromdate_part = (fromdate + i*delta_by_part).replace(microsecond=0)
-            todate_part = (fromdate.replace(microsecond=0) + i*delta_by_part + delta_by_part - timedelta(seconds=1)).replace(microsecond=0)
+            fromdate_part = (fromdate + i*delta_by_part)
+            todate_part = (fromdate + i*delta_by_part + delta_by_part - datetime.timedelta(seconds=1))
             delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
             #print(i, fromdate_part, '-', todate_part)
 
@@ -356,7 +350,5 @@ def clean_text(text, replace_newline='\n'):
     return res
 
 if __name__ == '__main__':
-    pass
-    #from pprint import pprint
-    #from datetime import datetime as dt
-    #print(sec_to_str(3685))
+    import datetime
+    from pprint import pprint

@@ -1,14 +1,15 @@
 import unittest
 from youtube_api import utils
 from youtube_api.youtube_api_v3 import YoutubeApi, YoutubeException
-from datetime import datetime, timedelta
+#from datetime import datetime, timedelta
+import datetime
 from pprint import pprint
 
 
 class TestUtils(unittest.TestCase):
     def test_date_period_into_parts(self):
-        fromdate = datetime(2019,1,10,11,30)
-        todate = datetime(2019,4,3,22,40)
+        fromdate = datetime.datetime(2019,1,10,11,30)
+        todate = datetime.datetime(2019,4,3,22,40)
         datepart = utils.date_period_into_parts(fromdate, todate, partion_by=3)
         self.assertEqual(len(datepart), 3, "Период делится на 3 части")
         self.assertEqual(datepart[0]['fromdate'], fromdate, "Начальная дата не совпадает")
@@ -17,13 +18,27 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(len(datepart2), 4, "Период делится на по месяцам")
         self.assertEqual(datepart2[0]['fromdate'], fromdate, "Начальная дата не совпадает")
 
-        fromdate = datetime(2018,10,10,11,30)
-        todate = datetime(2019,3,3,22,40)
+        fromdate = datetime.datetime(2018,10,10,11,30)
+        todate = datetime.datetime(2019,3,3,22,40)
         datepart3 = utils.date_period_into_parts(fromdate, todate, partion_by='month')
         self.assertEqual(len(datepart3), 6, "Период делится по месяцам")
-
         datepart3 = utils.date_period_into_parts(fromdate, todate, partion_by='day')
         self.assertEqual(len(datepart3), 145, "Период делится по дням")
+        datepart4 = utils.date_period_into_parts(datetime.datetime(2019,2,27, 20,30), datetime.datetime(2019,3,3,10), partion_by='day')
+        self.assertEqual(len(datepart4), 5, "Разбивка по дням. Не високосный год.")
+        datepart5 = utils.date_period_into_parts(datetime.date(2018,12,28), datetime.date(2019,1,3), partion_by='day')
+        self.assertEqual(len(datepart5), 7, "Разбивка по дням с переходом между годами")
+        datepart6 = utils.date_period_into_parts(datetime.datetime(2019,2,1, 20,30), datetime.datetime(2019,5,10), partion_by='month')
+        self.assertEqual(len(datepart6), 4, "Разбивка по месяцам")
+        datepart7 = utils.date_period_into_parts(datetime.datetime(2016,2,1, 20,30), datetime.datetime(2016,5,10), partion_by='month')
+        self.assertEqual(datepart7[0]['todate'], datetime.datetime(2016,2,29,23,59,59), "Разбивка по месяцам. Високосный год")
+        datepart8 = utils.date_period_into_parts(datetime.datetime(2015,11,10), datetime.date(2016,4,5), partion_by='month')
+        self.assertEqual(len(datepart8), 6, "Разбивка по месяцам с переходом между годами")
+        datepart9 = utils.date_period_into_parts(datetime.date(2015,2,1), datetime.date(2019,5,10), partion_by='year')
+        self.assertEqual(len(datepart9), 5, "Разбивка по годам. Тип datetime.date")
+        datepart10 = utils.date_period_into_parts(datetime.datetime(2016,12,31), datetime.datetime(2018,1,1), partion_by='year')
+        self.assertEqual(len(datepart10), 3, "Разбивка по годам. Тип datetime.datetime")
+        
 
     def test_truncatechars(self):
         self.assertEqual(utils.truncatechars('Длинный текст', 8, onestring=True), 'Длинн...', 'Текст не совпадает')
@@ -41,9 +56,9 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.ytdate_to_str('P10DT2H16M36S'), '10d 02:16:36')
 
     def test_ytdate_to_timedelta(self):
-        self.assertEqual(utils.ytdate_to_timedelta('PT1H24S'), timedelta(0, 3624))  # 1:00:24
-        self.assertEqual(utils.ytdate_to_timedelta('PT2H16M36S'), timedelta(0, 8196))  # 2:16:36
-        self.assertEqual(utils.ytdate_to_timedelta('P10DT2H16M36S'), timedelta(10, 8196))  # 10days, 2:16:36
+        self.assertEqual(utils.ytdate_to_timedelta('PT1H24S'), datetime.timedelta(0, 3624))  # 1:00:24
+        self.assertEqual(utils.ytdate_to_timedelta('PT2H16M36S'), datetime.timedelta(0, 8196))  # 2:16:36
+        self.assertEqual(utils.ytdate_to_timedelta('P10DT2H16M36S'), datetime.timedelta(10, 8196))  # 10days, 2:16:36
 
     def _test_download_exception(self):
         self.assertRaises(utils.DownloadException, utils.download_json, 'http://ya.ru/')
@@ -67,16 +82,13 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.sec_to_str(83685), '23:14:45')
     
     def test_date_to_datetime(self):
-        import datetime
         self.assertEqual(utils.date_to_datetime(datetime.date(2019,12,3)), datetime.datetime(2019,12,3,0,0,0))
         
     def test_datetime_to_date(self):
-        import datetime
         self.assertEqual(utils.datetime_to_date(datetime.datetime(2019,12,3,12,30,59)), datetime.date(2019,12,3))
         self.assertEqual(utils.datetime_to_date(datetime.datetime(2019,12,3,12,30,59)), datetime.date(2019,12,3))
         
     def test_datetime_end_of_month(self):
-        import datetime
         self.assertEqual(utils.datetime_end_of_month(datetime.datetime(2019,12,3,12,30,59)), datetime.datetime(2019,12,31,23,59,59))
         self.assertEqual(utils.datetime_end_of_month(datetime.datetime(2019,2,3,12,30,59)), datetime.datetime(2019,2,28,23,59,59))
         self.assertEqual(utils.datetime_end_of_month(datetime.datetime(2016,2,3,12,30,59)), datetime.datetime(2016,2,29,23,59,59))
@@ -89,16 +101,9 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.datetime_end_of_month(datetime.date(2016,11,3)), datetime.datetime(2016,11,30,23,59,59))
 
     def test_datetime_start_of_month(self):
-        import datetime
         self.assertEqual(utils.datetime_start_of_month(datetime.datetime(2019,12,3,12,30,59)), datetime.datetime(2019,12,1,0,0,0))
         self.assertEqual(utils.datetime_start_of_month(datetime.date(2019,12,3)), datetime.datetime(2019,12,1,0,0,0))
         
-    def test_date_last_day2(self):
-        import datetime
-        self.assertEqual(utils.date_last_day2(2016,2), datetime.date(2016,2,29))
-        self.assertEqual(utils.date_last_day2(2019,2), datetime.date(2019,2,28))
-        self.assertEqual(utils.date_last_day2(2019,6), datetime.date(2019,6,30))
-        self.assertEqual(utils.date_last_day2(2019,12), datetime.date(2019,12,31))
 
 
 def videos_partion_handler(content, content_raw, yt_params, params):
