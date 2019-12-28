@@ -64,8 +64,42 @@ class TestUtils(unittest.TestCase):
     def test_sec_to_str(self):
         self.assertEqual(utils.sec_to_str(70), '01:10')
         self.assertEqual(utils.sec_to_str(3685), '1:01:25')
-        self.assertEqual(utils.sec_to_str(83685), '1:01:25')
+        self.assertEqual(utils.sec_to_str(83685), '23:14:45')
+    
+    def test_date_to_datetime(self):
+        import datetime
+        self.assertEqual(utils.date_to_datetime(datetime.date(2019,12,3)), datetime.datetime(2019,12,3,0,0,0))
         
+    def test_datetime_to_date(self):
+        import datetime
+        self.assertEqual(utils.datetime_to_date(datetime.datetime(2019,12,3,12,30,59)), datetime.date(2019,12,3))
+        self.assertEqual(utils.datetime_to_date(datetime.datetime(2019,12,3,12,30,59)), datetime.date(2019,12,3))
+        
+    def test_datetime_end_of_month(self):
+        import datetime
+        self.assertEqual(utils.datetime_end_of_month(datetime.datetime(2019,12,3,12,30,59)), datetime.datetime(2019,12,31,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.datetime(2019,2,3,12,30,59)), datetime.datetime(2019,2,28,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.datetime(2016,2,3,12,30,59)), datetime.datetime(2016,2,29,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.datetime(2019,11,3,12,30,59)), datetime.datetime(2019,11,30,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.date(2019,12,3)), datetime.datetime(2019,12,31,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.date(2019,12,31)), datetime.datetime(2019,12,31,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.date(2019,1,1)), datetime.datetime(2019,1,31,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.date(2019,2,28)), datetime.datetime(2019,2,28,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.date(2016,2,28)), datetime.datetime(2016,2,29,23,59,59))
+        self.assertEqual(utils.datetime_end_of_month(datetime.date(2016,11,3)), datetime.datetime(2016,11,30,23,59,59))
+
+    def test_datetime_start_of_month(self):
+        import datetime
+        self.assertEqual(utils.datetime_start_of_month(datetime.datetime(2019,12,3,12,30,59)), datetime.datetime(2019,12,1,0,0,0))
+        self.assertEqual(utils.datetime_start_of_month(datetime.date(2019,12,3)), datetime.datetime(2019,12,1,0,0,0))
+        
+    def test_date_last_day2(self):
+        import datetime
+        self.assertEqual(utils.date_last_day2(2016,2), datetime.date(2016,2,29))
+        self.assertEqual(utils.date_last_day2(2019,2), datetime.date(2019,2,28))
+        self.assertEqual(utils.date_last_day2(2019,6), datetime.date(2019,6,30))
+        self.assertEqual(utils.date_last_day2(2019,12), datetime.date(2019,12,31))
+
 
 def videos_partion_handler(content, content_raw, yt_params, params):
     print('i =', params['i'], 'limit=', params['limit'], 'pageToken=', yt_params['pageToken'], 'maxResults=',

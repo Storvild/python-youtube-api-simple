@@ -168,6 +168,37 @@ def download_json(url):
     return res
 
 
+def date_to_datetime(indate):
+    import datetime
+    return datetime.datetime(indate.year, indate.month, indate.day)
+
+def datetime_to_date(indatetime):
+    return indatetime.date()
+
+def datetime_end_of_month(indatetime):
+    import datetime
+    if type(indatetime) == datetime.date:
+        indatetime = date_to_datetime(indatetime)
+    if indatetime.month == 12:
+        res = indatetime.replace(day=31, hour=23, minute=59, second=59, microsecond=0)
+    else:
+        res = indatetime.replace(month=indatetime.month+1, day=1, hour=23, minute=59, second=59) - datetime.timedelta(days=1)
+    return res
+
+def datetime_start_of_month(indatetime):
+    import datetime
+    if type(indatetime) == datetime.date:
+        indatetime = date_to_datetime(indatetime)
+    return indatetime.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+# def date_last_day2(year, month):
+    # import datetime
+    # if month == 12:
+        # res = datetime.date(year, month, 31)
+    # else:
+        # res = datetime.date(year, month+1, 1) - datetime.timedelta(days=1)
+    # return res
+
 def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=None
     """
     Получить разбивку дат по периодам
@@ -328,6 +359,4 @@ if __name__ == '__main__':
     pass
     #from pprint import pprint
     #from datetime import datetime as dt
-
-
-
+    #print(sec_to_str(3685))
