@@ -39,6 +39,9 @@ class TestUtils(unittest.TestCase):
         datepart10 = utils.date_period_into_parts(datetime.datetime(2016,12,31), datetime.datetime(2018,1,1), partion_by='year')
         self.assertEqual(len(datepart10), 3, "Разбивка по годам. Тип datetime.datetime")
         
+        #datepart11 = utils.date_period_into_parts(datetime.datetime(2016,5,31), datetime.datetime(2016,2,1), partion_by='month')
+        #self.assertEqual(len(datepart11), 3, "Разбивка по годам. Тип datetime.datetime")
+        
 
     def test_truncatechars(self):
         self.assertEqual(utils.truncatechars('Длинный текст', 8, onestring=True), 'Длинн...', 'Текст не совпадает')

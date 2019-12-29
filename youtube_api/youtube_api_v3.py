@@ -589,7 +589,7 @@ class YoutubeApi():
         """
         self.result_raw = None
 
-        assert channelId != 0 or playlistId != 0
+        # assert channelId != 0 or playlistId != 0
 
         # Если передан videoId с одним или несколькими кодами, то выполнить метод get_videos_info и вернуть результат
         if videoId:
@@ -627,14 +627,14 @@ class YoutubeApi():
         published = ''
         if fromdate:
             if type(fromdate) == str:
-                published += f'&publishedAfter={fromdate}' #2019-01-01T00:00:00Z
+                published += '&publishedAfter={}'.format(fromdate) #2019-01-01T00:00:00Z
             elif type(fromdate) == datetime.date:
                 published += '&publishedAfter={}Z'.format(datetime.datetime.fromordinal(fromdate.toordinal()).replace(microsecond=0).isoformat(sep='T'))  # 2019-01-01T00:00:00Z
             else:
                 published += '&publishedAfter={}Z'.format(fromdate.replace(microsecond=0).isoformat(sep='T'))
         if todate:
             if type(todate) == str:
-                published += f'&publishedBefore={todate}' #2019-12-31T23:59:59Z
+                published += '&publishedBefore={}'.format(todate) #2019-12-31T23:59:59Z
             elif type(todate) == datetime.date:
                 published += '&publishedAfter={}Z'.format(datetime.datetime.fromordinal(todate.toordinal()).replace(microsecond=0).isoformat(sep='T'))  # 2019-01-01T00:00:00Z
             else:
@@ -655,43 +655,47 @@ class YoutubeApi():
 
         res = []
         pageToken = ''
-        for i in range(0, limit, maxResults):
-            content = self.download_yt_json(url, pageToken)
-            if fullInfo:
-                fields_full = fields
-                if fields in ('', '*'):
-                    fields_full = '*'
-                elif 'nextPageToken' not in fields:  # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
-                    fields_full = 'nextPageToken,pageInfo,items({})'.format(fields)
+        try:
+            for i in range(0, limit, maxResults):
+                content = self.download_yt_json(url, pageToken)
+                if fullInfo:
+                    fields_full = fields
+                    if fields in ('', '*'):
+                        fields_full = '*'
+                    elif 'nextPageToken' not in fields:  # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+                        fields_full = 'nextPageToken,pageInfo,items({})'.format(fields)
 
-                # Если в fields переданы поля, убираем из part неиспользуемые
-                part_new = self._correct_part(part, fields_full)
+                    # Если в fields переданы поля, убираем из part неиспользуемые
+                    part_new = self._correct_part(part, fields_full)
 
-                if playlistId:
-                    ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
+                    if playlistId:
+                        ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
+                    else:
+                        ids = [x['id']['videoId'] for x in content['items']]
+                    videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments,
+                                                  comments_limit=comments_limit, add_timecodes=add_timecodes,
+                                                  page_handler=video_handler)
+                    res.extend(videos)
                 else:
-                    ids = [x['id']['videoId'] for x in content['items']]
-                videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments,
-                                              comments_limit=comments_limit, add_timecodes=add_timecodes,
-                                              page_handler=video_handler)
-                res.extend(videos)
-            else:
-                res.extend(content['items'])
+                    res.extend(content['items'])
 
-            if page_handler:
-                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
-                yt_params = {'url': yt_url, 'q': q, 'channelId': channelId, 'playlistId': playlistId,
-                             'fromdate': fromdate, 'todate':todate, 'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults}
-                params = {'i': i, 'limit': limit}
-                do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
-                if do_continue is False:
+                if page_handler:
+                    yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
+                    yt_params = {'url': yt_url, 'q': q, 'channelId': channelId, 'playlistId': playlistId,
+                                 'fromdate': fromdate, 'todate':todate, 'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults}
+                    params = {'i': i, 'limit': limit}
+                    do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
+                    if do_continue is False:
+                        break
+
+                if 'nextPageToken' in content:
+                    pageToken = content['nextPageToken']
+                    time.sleep(self.timeout)
+                else:
                     break
+        except Exception as e:
+            print(str(e))
 
-            if 'nextPageToken' in content:
-                pageToken = content['nextPageToken']
-                time.sleep(self.timeout)
-            else:
-                break
         self.result_raw = res
         res = res[:limit]
         return res
@@ -766,3 +770,5 @@ if __name__ == '__main__':
 # WISH
 # Пометка удаленных видео
 # Пропуск ошибок
+# str_to_datetime
+# datetime_to_str
