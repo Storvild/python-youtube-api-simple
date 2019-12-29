@@ -1,8 +1,10 @@
 import time
 import datetime
 import re
-from . import utils
-#import utils
+try:
+    from . import utils
+except:
+    import utils
 
 
 class YoutubeItem():
@@ -98,8 +100,14 @@ class YoutubeApi():
         :param ApiKey: API_KEY от Google
         :type ApiKey: str
         """
-        assert ApiKey != '', 'YoutubeApi: Необходимо указать KEY_API'
-        self.ApiKey = ApiKey
+        assert ApiKey != '' or len(ApiKey) == 0, 'YoutubeApi: Необходимо указать API_KEY или список API_KEY'
+
+        if type(ApiKey) == list:
+            self.ApiKeyList = ApiKey
+            self.ApiKey = ApiKey[0]
+        else:
+            self.ApiKey = ApiKey
+            self.ApiKeyList = [ApiKey]
         self.result_raw = None  # Оригинальный результат в виде структуры json
         self.timeout = timeout  # Пауза между запросами
 
@@ -130,6 +138,17 @@ class YoutubeApi():
         res = utils.download_json(url)
         if 'error' in res:
             raise YoutubeException(message='download_yt_json: Ошибка обработки запроса', response_url=url, response_content=res, page_token=pageToken)
+        return res
+
+    def set_next_api_key(self):
+        """ Если передан список API_KEY, то установить следующий API_KEY, пока не дойдет до конца списка """
+        idx = self.ApiKeyList.index(self.ApiKey)
+        idx += 1
+        if idx > len(self.ApiKeyList) - 1:
+            res = False
+        else:
+            self.ApiKey = self.ApiKeyList[idx]
+            res = True
         return res
 
     def parse_yt_result(self, js):
@@ -403,27 +422,30 @@ class YoutubeApi():
 
         res = []
         pageToken = ''
-        for i in range(0, limit, maxResults):
-            obj_json = self.download_yt_json(url, pageToken)
-            content = obj_json
-            res.extend(content['items'])
+        try:
+            for i in range(0, limit, maxResults):
+                obj_json = self.download_yt_json(url, pageToken)
+                content = obj_json
+                res.extend(content['items'])
 
-            if page_handler:
-                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
-                yt_params = {'url': yt_url, 'id': id, 'videoId': videoId, 'parentId': parentId,
-                             'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults,
-                             'order': order, 'textFormat': textFormat}
-                params = {'i': i, 'limit': limit}
-                do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
+                if page_handler:
+                    yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
+                    yt_params = {'url': yt_url, 'id': id, 'videoId': videoId, 'parentId': parentId,
+                                 'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults,
+                                 'order': order, 'textFormat': textFormat}
+                    params = {'i': i, 'limit': limit}
+                    do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
 
-                if do_continue is False:
+                    if do_continue is False:
+                        break
+
+                if 'nextPageToken' in content:
+                    pageToken = content['nextPageToken']
+                    time.sleep(self.timeout)
+                else:
                     break
-
-            if 'nextPageToken' in content:
-                pageToken = content['nextPageToken']
-                time.sleep(self.timeout)
-            else:
-                break
+        except Exception:
+            print('Ошибка при получении комментариев')
         self.result_raw = res
         res = res[:limit]
         return res
@@ -488,46 +510,62 @@ class YoutubeApi():
         maxResults = 50
         res = []
         for i in range(0, len(videoIDs), maxResults):
-            ids = ','.join(videoIDs[i:i+maxResults])
-            url = 'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}' \
-                  '&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'ids': ids,'maxResults': maxResults, 'API_KEY': self.ApiKey})
-            content = self.download_yt_json(url)
+            error_get_content = True  # Для повторного получения, если произошла ошибка
+            while error_get_content:
+                try:
 
-            if add_comments or add_timecodes:
-                for item in content['items']:
-                    videoId = item['id']
-                    # Иниациализация полей комментариев и таймкодов
-                    if add_comments:
-                        item['comments'] = []
-                    if add_timecodes:
-                        item['timecodes'] = ''
-                    try:
-                        comments = self.get_comments(videoId=videoId, limit=comments_limit)
-                        if add_comments:
-                            item['comments'] = comments
-                        if add_timecodes:
-                            for comment in comments:
-                                comment_text = comment['snippet']['topLevelComment']['snippet']['textOriginal']
+                    ids = ','.join(videoIDs[i:i+maxResults])
+                    url = 'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}' \
+                          '&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'ids': ids,'maxResults': maxResults, 'API_KEY': self.ApiKey})
+                    content = self.download_yt_json(url)
+
+                    if add_comments or add_timecodes:
+                        for item in content['items']:
+                            videoId = item['id']
+                            # Иниациализация полей комментариев и таймкодов
+                            if add_comments:
+                                item['comments'] = []
+                            if add_timecodes:
                                 item['timecodes'] = ''
-                                if re.search('\d{1,2}:\d{2}.*\d{1,2}:\d{2}', comment_text, re.MULTILINE | re.DOTALL):
-                                    item['timecodes'] = utils.clean_text(comment_text)
-                                    break
-                    except:
-                        pass
+                            try:
+                                comments = self.get_comments(videoId=videoId, limit=comments_limit)
+                                if add_comments:
+                                    item['comments'] = comments
+                                if add_timecodes:
+                                    for comment in comments:
+                                        comment_text = comment['snippet']['topLevelComment']['snippet']['textOriginal']
+                                        item['timecodes'] = ''
+                                        if re.search('\d{1,2}:\d{2}.*\d{1,2}:\d{2}', comment_text, re.MULTILINE | re.DOTALL):
+                                            item['timecodes'] = utils.clean_text(comment_text)
+                                            break
+                            except:
+                                pass
 
-            res.extend(content['items'])
-            
-            if page_handler:
-                yt_url = '{}'.format(YoutubeApi._clean_url(url))
-                yt_params = {'url': yt_url, 'id': ids, 'part': part, 'fields': fields, 'pageToken': '',
-                             'maxResults': maxResults}
-                params = {'i': i, 'limit': limit}
-                do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
-                if do_continue is False:
-                    break
+                    res.extend(content['items'])
 
-            if (i+maxResults)>limit and limit>0:
-                break
+                    if page_handler:
+                        yt_url = '{}'.format(YoutubeApi._clean_url(url))
+                        yt_params = {'url': yt_url, 'id': ids, 'part': part, 'fields': fields, 'pageToken': '',
+                                     'maxResults': maxResults}
+                        params = {'i': i, 'limit': limit}
+                        do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
+                        if do_continue is False:
+                            break
+
+                    if (i+maxResults)>limit and limit>0:
+                        break
+
+                    error_get_content = False  # Завершено без ошибок
+                except YoutubeException as e:
+                    error_get_content = False  # По умолчанию повторно не перезапрашивать данные
+                    if e.reason in ('quotaExceeded', 'dailyLimitExceeded'):
+                        if self.set_next_api_key():  # Если получен следующий API_KEY, то установить его
+                            error_get_content = True     # Повторно получить данные
+                            print('Квота превышена, переключение на следующий API_KEY и перезапрос...')
+                    else:
+                        print('Ошибка:', str(e))
+
+
         self.result_raw = res
         res = res[:limit]
 
@@ -624,6 +662,8 @@ class YoutubeApi():
 
         maxResults = 50  # Количество объектов на 1 запрос. Максимум = 50
 
+        res = []
+
         published = ''
         if fromdate:
             if type(fromdate) == str:
@@ -653,48 +693,60 @@ class YoutubeApi():
                   '&q={q}&maxResults={maxResults}&order={order}{published}' \
                   '&key={API_KEY}'.format(**{'part': part_main, 'fields': fields_main, 'q': q, 'maxResults': maxResults, 'order': order, 'published': published, 'API_KEY': self.ApiKey})
 
-        res = []
         pageToken = ''
         try:
             for i in range(0, limit, maxResults):
-                content = self.download_yt_json(url, pageToken)
-                if fullInfo:
-                    fields_full = fields
-                    if fields in ('', '*'):
-                        fields_full = '*'
-                    elif 'nextPageToken' not in fields:  # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
-                        fields_full = 'nextPageToken,pageInfo,items({})'.format(fields)
+                error_get_content = True  # Для повторного получения, если произошла ошибка
+                while error_get_content:
+                    try:
+                        content = self.download_yt_json(url, pageToken)
+                        if fullInfo:
+                            fields_full = fields
+                            if fields in ('', '*'):
+                                fields_full = '*'
+                            elif 'nextPageToken' not in fields:  # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+                                fields_full = 'nextPageToken,pageInfo,items({})'.format(fields)
 
-                    # Если в fields переданы поля, убираем из part неиспользуемые
-                    part_new = self._correct_part(part, fields_full)
+                            # Если в fields переданы поля, убираем из part неиспользуемые
+                            part_new = self._correct_part(part, fields_full)
 
-                    if playlistId:
-                        ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
-                    else:
-                        ids = [x['id']['videoId'] for x in content['items']]
-                    videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments,
-                                                  comments_limit=comments_limit, add_timecodes=add_timecodes,
-                                                  page_handler=video_handler)
-                    res.extend(videos)
-                else:
-                    res.extend(content['items'])
+                            if playlistId:
+                                ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
+                            else:
+                                ids = [x['id']['videoId'] for x in content['items']]
+                            videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments,
+                                                          comments_limit=comments_limit, add_timecodes=add_timecodes,
+                                                          page_handler=video_handler)
+                            res.extend(videos)
+                        else:
+                            res.extend(content['items'])
 
-                if page_handler:
-                    yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
-                    yt_params = {'url': yt_url, 'q': q, 'channelId': channelId, 'playlistId': playlistId,
-                                 'fromdate': fromdate, 'todate':todate, 'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults}
-                    params = {'i': i, 'limit': limit}
-                    do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
-                    if do_continue is False:
-                        break
+                        if page_handler:
+                            yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
+                            yt_params = {'url': yt_url, 'q': q, 'channelId': channelId, 'playlistId': playlistId,
+                                         'fromdate': fromdate, 'todate':todate, 'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults}
+                            params = {'i': i, 'limit': limit}
+                            do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
+                            if do_continue is False:
+                                break
 
-                if 'nextPageToken' in content:
-                    pageToken = content['nextPageToken']
-                    time.sleep(self.timeout)
-                else:
-                    break
+                        if 'nextPageToken' in content:
+                            pageToken = content['nextPageToken']
+                            time.sleep(self.timeout)
+                        else:
+                            break
+
+                        error_get_content = False  # Ошибок не произошло
+                    except YoutubeException as e:
+                        error_get_content = False  # По умолчанию повторно не перезапрашивать данные
+                        if e.reason in ('quotaExceeded', 'dailyLimitExceeded'):
+                            if self.set_next_api_key():  # Если получен следующий API_KEY, то установить его
+                                error_get_content = True     # Повторно получить данные
+                                print('Квота превышена, переключение на следующий API_KEY и перезапрос...')
+                        else:
+                            print('Ошибка:', str(e))
         except Exception as e:
-            print(str(e))
+            print('Ошибка:', str(e))
 
         self.result_raw = res
         res = res[:limit]
@@ -763,12 +815,22 @@ class YoutubeApi():
 if __name__ == '__main__':
     from pprint import pprint
     #from datetime import datetime
-    yt = YoutubeApi('123')
-    help(YoutubeApi)
+    #yt = YoutubeApi('123')
+    yt = YoutubeApi(['123','345','678'])
+    print(yt.ApiKey)
+    print(yt.ApiKeyList)
+
+    print(yt.set_next_api_key(), yt.ApiKey)
+    print(yt.set_next_api_key(), yt.ApiKey)
+    print(yt.set_next_api_key(), yt.ApiKey)
+    print(yt.set_next_api_key(), yt.ApiKey)
+    #help(YoutubeApi)
 
 
 # WISH
-# Пометка удаленных видео
+# Пометка удаленных видео. Если был запрос с id, а в результатах запроса его нет, то помечать видео как deleted
 # Пропуск ошибок
 # str_to_datetime
 # datetime_to_str
+# + Сделать список API_KEY, по которому в случае ошибки менять на следующий и попытаться снова получить данные
+#

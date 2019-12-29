@@ -286,18 +286,27 @@ def date_period_into_parts(fromdate, todate, partion_by=1): #part=1, part_by=Non
             todate_part_end = todate
             delta_list.append({'fromdate': fromdate_part_end, 'todate': todate_part_end})
 
-    elif type(partion_by) == int and partion_by>0:
-        delta = todate - fromdate
-        delta_by_part = delta/partion_by
-        #print('Кол-во часте:', part)
-        #print('Всего дней:', delta)
-        #print('Дней на часть:', delta_by_part)
-        for i in range(partion_by):
-            fromdate_part = (fromdate + i*delta_by_part)
-            todate_part = (fromdate + i*delta_by_part + delta_by_part - datetime.timedelta(seconds=1))
-            delta_list.append({'fromdate':fromdate_part, 'todate':todate_part})
-            #print(i, fromdate_part, '-', todate_part)
-
+    #elif type(partion_by) == int and partion_by>0:
+    else:  # Предполагаем, что кроме day, month, year можно написать только целое число частей для разбивки периода
+        try:
+            partion_int = int(partion_by)
+            if partion_int > 0:
+                delta = todate - fromdate
+                delta_by_part = delta/partion_int
+                delta_by_part = delta_by_part - datetime.timedelta(microseconds=delta_by_part.microseconds) # Убираем микросекунды
+                #print('Кол-во часте:', part)
+                #print('Всего дней:', delta)
+                #print('Дней на часть:', delta_by_part)
+                for i in range(partion_int):
+                    fromdate_part = (fromdate + i*delta_by_part)
+                    if i == partion_int -1:
+                        todate_part = todate
+                    else:
+                        todate_part = (fromdate + i*delta_by_part + delta_by_part - datetime.timedelta(seconds=1))
+                    delta_list.append({'fromdate': fromdate_part, 'todate': todate_part})
+                    #print(i, fromdate_part, '-', todate_part)
+        except:
+            pass
     return delta_list
 
 
