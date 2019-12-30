@@ -680,25 +680,35 @@ class YoutubeApi():
             else:
                 published += '&publishedBefore={}Z'.format(todate.replace(microsecond=0).isoformat(sep='T'))
 
-        if playlistId:
-            url = 'https://www.googleapis.com/youtube/v3/playlistItems?part={part}' \
-                  '&fields=nextPageToken,pageInfo,items(id,snippet)&playlistId={playlistId}&maxResults={maxResults}' \
-                  '&key={API_KEY}'.format(**{'part': part_main, 'fields': fields_main, 'playlistId': playlistId, 'maxResults': maxResults, 'API_KEY': self.ApiKey})
-        elif channelId:
-            url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
-                  '&channelId={channelId}&maxResults={maxResults}&order={order}{published}' \
-                  '&key={API_KEY}'.format(**{'part': part_main, 'fields': fields_main, 'channelId': channelId, 'maxResults': maxResults, 'order': order, 'published': published, 'API_KEY': self.ApiKey})
-        else:
-            url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
-                  '&q={q}&maxResults={maxResults}&order={order}{published}' \
-                  '&key={API_KEY}'.format(**{'part': part_main, 'fields': fields_main, 'q': q, 'maxResults': maxResults, 'order': order, 'published': published, 'API_KEY': self.ApiKey})
-
-        pageToken = ''
         try:
+            pageToken = ''
+            done = False # Для выхода из вложенных циклов
             for i in range(0, limit, maxResults):
+                if done:
+                    break
                 error_get_content = True  # Для повторного получения, если произошла ошибка
                 while error_get_content:
                     try:
+                        if playlistId:
+                            url = 'https://www.googleapis.com/youtube/v3/playlistItems?part={part}' \
+                                  '&fields=nextPageToken,pageInfo,items(id,snippet)&playlistId={playlistId}&maxResults={maxResults}' \
+                                  '&key={API_KEY}'.format(
+                                   **{'part': part_main, 'fields': fields_main, 'playlistId': playlistId,
+                                   'maxResults': maxResults, 'API_KEY': self.ApiKey})
+                        elif channelId:
+                            url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
+                                  '&channelId={channelId}&maxResults={maxResults}&order={order}{published}' \
+                                  '&key={API_KEY}'.format(
+                                   **{'part': part_main, 'fields': fields_main, 'channelId': channelId,
+                                   'maxResults': maxResults, 'order': order, 'published': published,
+                                   'API_KEY': self.ApiKey})
+                        else:
+                            url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
+                                  '&q={q}&maxResults={maxResults}&order={order}{published}' \
+                                  '&key={API_KEY}'.format(
+                                   **{'part': part_main, 'fields': fields_main, 'q': q, 'maxResults': maxResults,
+                                   'order': order, 'published': published, 'API_KEY': self.ApiKey})
+
                         content = self.download_yt_json(url, pageToken)
                         if fullInfo:
                             fields_full = fields
@@ -728,12 +738,14 @@ class YoutubeApi():
                             params = {'i': i, 'limit': limit}
                             do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
                             if do_continue is False:
+                                done = True
                                 break
 
                         if 'nextPageToken' in content:
                             pageToken = content['nextPageToken']
                             time.sleep(self.timeout)
                         else:
+                            done = True
                             break
 
                         error_get_content = False  # Ошибок не произошло
