@@ -155,25 +155,26 @@ class TestYoutubeApi(unittest.TestCase):
 
     def _test_get_videos_info(self):
         obj = self.yt.get_videos_info('BWysOdCSz0k')
-        self.assertGreaterEqual(len(obj), 1)
-        self.assertEqual(obj['kind'], 'youtube#video')
+        #pprint(obj)
+        self.assertGreaterEqual(len(obj['items']), 1)
+        self.assertEqual(obj['items'][0]['kind'], 'youtube#video')
 
     def _test_get_videos(self):
         obj = self.yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A', limit=50)
         #print(obj)
-        self.assertEqual(obj[0]['id']['kind'], 'youtube#video')
-        self.assertGreaterEqual(len(obj), 0)
+        self.assertEqual(obj['items'][0]['id']['kind'], 'youtube#video')
+        self.assertGreaterEqual(len(obj['items']), 0)
 
     def _test_get_videos_q(self):
         obj = self.yt.get_videos(q='квн', limit=10, order='relevance')
-        self.assertEqual(len(obj), 10)
-        self.assertIn('snippet', obj[0])
+        self.assertEqual(len(obj['items']), 10)
+        self.assertIn('snippet', obj['items'][0])
 
     def _test_get_videos_fullinfo(self):
         obj = self.yt.get_videos(channelId='UC8lCS8Ubv3t0-Tf4IYLioTA', fullInfo=True,
                                  fields='id,snippet(title,publishedAt),statistics,contentDetails', limit=5)
-        self.assertGreaterEqual(len(obj), 1)
-        self.assertIn('contentDetails', obj[0])
+        self.assertGreaterEqual(len(obj['items']), 1)
+        self.assertIn('contentDetails', obj['items'][0])
 
     def _test_get_videos_partion(self):
         from datetime import datetime
@@ -184,8 +185,8 @@ class TestYoutubeApi(unittest.TestCase):
 
     def _test_get_comments(self):
         obj = self.yt.get_comments(videoId='Dy17RExwe8E')
-        self.assertGreaterEqual(len(obj), 1)
-        self.assertEqual(obj[0]['snippet']['topLevelComment']['snippet']['videoId'], 'Dy17RExwe8E')
+        self.assertGreaterEqual(len(obj['items']), 1)
+        self.assertEqual(obj['items'][0]['snippet']['topLevelComment']['snippet']['videoId'], 'Dy17RExwe8E')
 
     def _test_get_comments_off(self):
         """ Тест получения комментариев к видео, у которых они отключены """
@@ -193,10 +194,6 @@ class TestYoutubeApi(unittest.TestCase):
             obj = self.yt.get_comments(videoId='mg7OTHfdDMc')
         except YoutubeException as e:
             self.assertEqual(e.response_status, 403)
-
-
-#        self.assertGreaterEqual(len(obj), 1)
-#        self.assertEqual(obj[0]['snippet']['topLevelComment']['snippet']['videoId'], 'Dy17RExwe8E')
 
 
 if __name__ == '__main__':

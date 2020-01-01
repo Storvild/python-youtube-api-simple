@@ -385,6 +385,7 @@ class YoutubeApi():
             :params parentId: Ответы на комментарий (id)
             :params order:    Сортировка relevance или date
             :params textFormat: Формат текста в textDisplay - plainText или html (В поле textOriginal только текст)
+            :params page_handler: Ф-ция вызываемая при получении порции данных
         """
         self.result_raw = None
 
@@ -421,6 +422,7 @@ class YoutubeApi():
                                              'API_KEY': self.ApiKey})
 
         res = []
+        errors = []
         pageToken = ''
         try:
             for i in range(0, limit, maxResults):
@@ -444,10 +446,12 @@ class YoutubeApi():
                     time.sleep(self.timeout)
                 else:
                     break
-        except Exception:
+        except Exception as e:
+            errors.append(e)
             print('Ошибка при получении комментариев')
         self.result_raw = res
         res = res[:limit]
+        res = {'items': res, 'errors': errors}
         return res
 
     def get_videos_info(self, videoIDs, fields='*', part='id,snippet,statistics,contentDetails', limit=50, page_handler=None, add_comments=False, comments_limit=100, add_timecodes=False):
@@ -489,14 +493,19 @@ class YoutubeApi():
         :type add_comments: bool
         :type comments_limit: int
         :type add_timecodes: bool
-        :rtype: list
+        :rtype: dict
         """
-        self.result_raw = None
+        #self.result_raw = None
 
         assert type(videoIDs) in (list, tuple, set, str)
         assert comments_limit <= 100
 
-        if fields in ('','*'):
+        maxResults = 50
+        res = []
+        deleted = []
+        errors = []
+
+        if fields in ('', '*'):
             fields = '*'
         elif 'nextPageToken' not in fields: # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
             fields = 'nextPageToken,items({})'.format(fields)
@@ -506,11 +515,12 @@ class YoutubeApi():
         # Если videoIDs не является списком, преобразуем в список
         if type(videoIDs) == str:
             videoIDs = videoIDs.split(',')
-        
-        maxResults = 50
-        res = []
+
+        done = False
         for i in range(0, len(videoIDs), maxResults):
             error_get_content = True  # Для повторного получения, если произошла ошибка
+            if done:
+                break
             while error_get_content:
                 try:
 
@@ -518,6 +528,17 @@ class YoutubeApi():
                     url = 'https://www.googleapis.com/youtube/v3/videos?part={part}&fields={fields}&id={ids}' \
                           '&maxResults={maxResults}&key={API_KEY}'.format(**{'part': part, 'fields': fields, 'ids': ids,'maxResults': maxResults, 'API_KEY': self.ApiKey})
                     content = self.download_yt_json(url)
+
+                    # ЗДЕСЬ ДОЛЖЕН БЫТЬ КОД ДЛЯ ПОМЕТКИ УДАЛЕННЫХ. Сравниваем videoIDs[i:i+maxResults] и content
+                    query_codes = videoIDs[i:i+maxResults]
+                    response_codes = [x['id'] for x in content['items']]
+                    deleted_page = set(query_codes) - set(response_codes)
+                    deleted.extend(deleted_page)
+
+                    #from pprint import pprint
+                    #pprint(query_codes)
+                    #pprint(response_codes)
+                    #pprint(deleted_page)
 
                     if add_comments or add_timecodes:
                         for item in content['items']:
@@ -529,20 +550,20 @@ class YoutubeApi():
                                 item['timecodes'] = ''
                             try:
                                 comments = self.get_comments(videoId=videoId, limit=comments_limit)
+                                errors.extend(comments['errors'])
                                 if add_comments:
-                                    item['comments'] = comments
+                                    item['comments'] = comments['items']
                                 if add_timecodes:
-                                    for comment in comments:
+                                    for comment in comments['items']:
                                         comment_text = comment['snippet']['topLevelComment']['snippet']['textOriginal']
                                         item['timecodes'] = ''
                                         if re.search('\d{1,2}:\d{2}.*\d{1,2}:\d{2}', comment_text, re.MULTILINE | re.DOTALL):
                                             item['timecodes'] = utils.clean_text(comment_text)
                                             break
-                            except:
-                                pass
+                            except Exception as e:
+                                errors.append(e)
 
                     res.extend(content['items'])
-
                     if page_handler:
                         yt_url = '{}'.format(YoutubeApi._clean_url(url))
                         yt_params = {'url': yt_url, 'id': ids, 'part': part, 'fields': fields, 'pageToken': '',
@@ -550,9 +571,11 @@ class YoutubeApi():
                         params = {'i': i, 'limit': limit}
                         do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
                         if do_continue is False:
+                            done = True
                             break
 
                     if (i+maxResults)>limit and limit>0:
+                        done = True
                         break
 
                     error_get_content = False  # Завершено без ошибок
@@ -564,11 +587,14 @@ class YoutubeApi():
                             print('Квота превышена, переключение на следующий API_KEY и перезапрос...')
                     else:
                         print('Ошибка:', str(e))
+                    errors.append(e)
+                except Exception as e:
+                    errors.append(e)
 
 
-        self.result_raw = res
+        #self.result_raw = res
         res = res[:limit]
-
+        res = {'items': res, 'deleted': deleted, 'errors': errors}
         return res
     
     def get_videos(self, q='', channelId='', playlistId='', videoId='', fromdate=None, todate=None, limit=50,
@@ -623,9 +649,9 @@ class YoutubeApi():
         :type add_comments: bool
         :type comments_limit: int
         :type add_timecodes: bool
-        :rtype: list
+        :rtype: dict
         """
-        self.result_raw = None
+        # self.result_raw = None
 
         # assert channelId != 0 or playlistId != 0
 
@@ -633,7 +659,9 @@ class YoutubeApi():
         if videoId:
             if not fullInfo:
                 part = 'id,snippet'
-            res = self.get_videos_info(videoId, fields, part, limit, video_handler, add_comments, comments_limit, add_timecodes)
+            res = self.get_videos_info(videoIDs=videoId, fields=fields, part=part, limit=limit,
+                                       page_handler=video_handler,
+                                       add_comments=add_comments, comments_limit=comments_limit, add_timecodes=add_timecodes)
             if page_handler:
                 if type(videoId) == list:
                     videoId = ','.join(videoId)
@@ -663,6 +691,9 @@ class YoutubeApi():
         maxResults = 50  # Количество объектов на 1 запрос. Максимум = 50
 
         res = []
+        errors = []
+        deleted = []
+
 
         published = ''
         if fromdate:
@@ -727,7 +758,9 @@ class YoutubeApi():
                             videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments,
                                                           comments_limit=comments_limit, add_timecodes=add_timecodes,
                                                           page_handler=video_handler)
-                            res.extend(videos)
+                            res.extend(videos['items'])
+                            deleted.extend(videos['deleted'])
+                            errors.extend(videos['errors'])
                         else:
                             res.extend(content['items'])
 
@@ -757,11 +790,18 @@ class YoutubeApi():
                                 print('Квота превышена, переключение на следующий API_KEY и перезапрос...')
                         else:
                             print('Ошибка:', str(e))
+                        errors.append(e)
+
+                    except Exception as e:
+                        errors.append(e)
+                
         except Exception as e:
+            errors.append(e)
             print('Ошибка:', str(e))
 
-        self.result_raw = res
+        #self.result_raw = res
         res = res[:limit]
+        res = {'items': res, 'deleted': deleted, 'errors': errors}
         return res
 
     def get_videos_partion(self, fromdate, todate, q='', channelId='', playlistId='', limit=50,
@@ -828,14 +868,6 @@ if __name__ == '__main__':
     from pprint import pprint
     #from datetime import datetime
     #yt = YoutubeApi('123')
-    yt = YoutubeApi(['123','345','678'])
-    print(yt.ApiKey)
-    print(yt.ApiKeyList)
-
-    print(yt.set_next_api_key(), yt.ApiKey)
-    print(yt.set_next_api_key(), yt.ApiKey)
-    print(yt.set_next_api_key(), yt.ApiKey)
-    print(yt.set_next_api_key(), yt.ApiKey)
     #help(YoutubeApi)
 
 
@@ -845,4 +877,6 @@ if __name__ == '__main__':
 # str_to_datetime
 # datetime_to_str
 # + Сделать список API_KEY, по которому в случае ошибки менять на следующий и попытаться снова получить данные
-#
+# Сделать get_videos_info внутренним методом и использовать только get_videos
+# Ошибки складывать в errors
+# Результат метода get_videos_info - {'items'=[], errors=[], deleted=[]}
