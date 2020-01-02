@@ -597,7 +597,7 @@ class YoutubeApi():
         res = {'items': res, 'deleted': deleted, 'errors': errors}
         return res
     
-    def get_videos(self, q='', channelId='', playlistId='', videoId='', fromdate=None, todate=None, limit=50,
+    def get_videos(self, q='', channelId='', playlistId='', videoId='', fromdate=None, todate=None, limit=50, partion_by='1',
                    part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False,
                    page_handler=None, video_handler=None,
                    add_comments=False, comments_limit=100, add_timecodes=False):
@@ -692,175 +692,121 @@ class YoutubeApi():
 
         res = []
         errors = []
-        deleted = []
+        deleted = []  # В данном случае удаленных видео быть не может, т.к. это поиск видео, но оставлено для совместимости
 
+        datepart_list = [{'fromdate': fromdate, 'todate': todate}]
+        if partion_by not in ('', '1', 1, 0):
+            datepart_list = utils.date_period_into_parts(fromdate, todate, partion_by=partion_by)
 
-        published = ''
-        if fromdate:
-            if type(fromdate) == str:
-                published += '&publishedAfter={}'.format(fromdate) #2019-01-01T00:00:00Z
-            elif type(fromdate) == datetime.date:
-                published += '&publishedAfter={}Z'.format(datetime.datetime.fromordinal(fromdate.toordinal()).replace(microsecond=0).isoformat(sep='T'))  # 2019-01-01T00:00:00Z
-            else:
-                published += '&publishedAfter={}Z'.format(fromdate.replace(microsecond=0).isoformat(sep='T'))
-        if todate:
-            if type(todate) == str:
-                published += '&publishedBefore={}'.format(todate) #2019-12-31T23:59:59Z
-            elif type(todate) == datetime.date:
-                published += '&publishedAfter={}Z'.format(datetime.datetime.fromordinal(todate.toordinal()).replace(microsecond=0).isoformat(sep='T'))  # 2019-01-01T00:00:00Z
-            else:
-                published += '&publishedBefore={}Z'.format(todate.replace(microsecond=0).isoformat(sep='T'))
+        for datepart in datepart_list:
 
-        try:
-            pageToken = ''
-            done = False # Для выхода из вложенных циклов
-            for i in range(0, limit, maxResults):
-                if done:
-                    break
-                error_get_content = True  # Для повторного получения, если произошла ошибка
-                while error_get_content:
-                    try:
-                        if playlistId:
-                            url = 'https://www.googleapis.com/youtube/v3/playlistItems?part={part}' \
-                                  '&fields=nextPageToken,pageInfo,items(id,snippet)&playlistId={playlistId}&maxResults={maxResults}' \
-                                  '&key={API_KEY}'.format(
-                                   **{'part': part_main, 'fields': fields_main, 'playlistId': playlistId,
-                                   'maxResults': maxResults, 'API_KEY': self.ApiKey})
-                        elif channelId:
-                            url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
-                                  '&channelId={channelId}&maxResults={maxResults}&order={order}{published}' \
-                                  '&key={API_KEY}'.format(
-                                   **{'part': part_main, 'fields': fields_main, 'channelId': channelId,
-                                   'maxResults': maxResults, 'order': order, 'published': published,
-                                   'API_KEY': self.ApiKey})
-                        else:
-                            url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
-                                  '&q={q}&maxResults={maxResults}&order={order}{published}' \
-                                  '&key={API_KEY}'.format(
-                                   **{'part': part_main, 'fields': fields_main, 'q': q, 'maxResults': maxResults,
-                                   'order': order, 'published': published, 'API_KEY': self.ApiKey})
+            published = ''
+            if datepart['fromdate']:
+                if type(datepart['fromdate']) == str:
+                    published += '&publishedAfter={}'.format(datepart['fromdate']) #2019-01-01T00:00:00Z
+                elif type(datepart['fromdate']) == datetime.date:
+                    published += '&publishedAfter={}Z'.format(datetime.datetime.fromordinal(datepart['fromdate'].toordinal()).replace(microsecond=0).isoformat(sep='T'))  # 2019-01-01T00:00:00Z
+                else:
+                    published += '&publishedAfter={}Z'.format(datepart['fromdate'].replace(microsecond=0).isoformat(sep='T'))
+            if datepart['todate']:
+                if type(datepart['todate']) == str:
+                    published += '&publishedBefore={}'.format(datepart['todate']) #2019-12-31T23:59:59Z
+                elif type(datepart['todate']) == datetime.date:
+                    published += '&publishedAfter={}Z'.format(datetime.datetime.fromordinal(datepart['todate'].toordinal()).replace(microsecond=0).isoformat(sep='T'))  # 2019-01-01T00:00:00Z
+                else:
+                    published += '&publishedBefore={}Z'.format(datepart['todate'].replace(microsecond=0).isoformat(sep='T'))
 
-                        content = self.download_yt_json(url, pageToken)
-                        if fullInfo:
-                            fields_full = fields
-                            if fields in ('', '*'):
-                                fields_full = '*'
-                            elif 'nextPageToken' not in fields:  # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
-                                fields_full = 'nextPageToken,pageInfo,items({})'.format(fields)
-
-                            # Если в fields переданы поля, убираем из part неиспользуемые
-                            part_new = self._correct_part(part, fields_full)
-
+            try:
+                pageToken = ''
+                done = False # Для выхода из вложенных циклов
+                for i in range(0, limit, maxResults):
+                    if done:
+                        break
+                    error_get_content = True  # Для повторного получения, если произошла ошибка
+                    while error_get_content:
+                        try:
                             if playlistId:
-                                ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
+                                url = 'https://www.googleapis.com/youtube/v3/playlistItems?part={part}' \
+                                      '&fields=nextPageToken,pageInfo,items(id,snippet)&playlistId={playlistId}&maxResults={maxResults}' \
+                                      '&key={API_KEY}'.format(
+                                       **{'part': part_main, 'fields': fields_main, 'playlistId': playlistId,
+                                       'maxResults': maxResults, 'API_KEY': self.ApiKey})
+                            elif channelId:
+                                url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
+                                      '&channelId={channelId}&maxResults={maxResults}&order={order}{published}' \
+                                      '&key={API_KEY}'.format(
+                                       **{'part': part_main, 'fields': fields_main, 'channelId': channelId,
+                                       'maxResults': maxResults, 'order': order, 'published': published,
+                                       'API_KEY': self.ApiKey})
                             else:
-                                ids = [x['id']['videoId'] for x in content['items']]
-                            videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments,
-                                                          comments_limit=comments_limit, add_timecodes=add_timecodes,
-                                                          page_handler=video_handler)
-                            res.extend(videos['items'])
-                            deleted.extend(videos['deleted'])
-                            errors.extend(videos['errors'])
-                        else:
-                            res.extend(content['items'])
+                                url = 'https://www.googleapis.com/youtube/v3/search?type=video&part={part}&fields={fields}' \
+                                      '&q={q}&maxResults={maxResults}&order={order}{published}' \
+                                      '&key={API_KEY}'.format(
+                                       **{'part': part_main, 'fields': fields_main, 'q': q, 'maxResults': maxResults,
+                                       'order': order, 'published': published, 'API_KEY': self.ApiKey})
 
-                        if page_handler:
-                            yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
-                            yt_params = {'url': yt_url, 'q': q, 'channelId': channelId, 'playlistId': playlistId,
-                                         'fromdate': fromdate, 'todate':todate, 'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults}
-                            params = {'i': i, 'limit': limit}
-                            do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
-                            if do_continue is False:
+                            content = self.download_yt_json(url, pageToken)
+                            if fullInfo:
+                                fields_full = fields
+                                if fields in ('', '*'):
+                                    fields_full = '*'
+                                elif 'nextPageToken' not in fields:  # Если не передано обязательное поле nextPageToken, значит перечисляются только поля в items
+                                    fields_full = 'nextPageToken,pageInfo,items({})'.format(fields)
+
+                                # Если в fields переданы поля, убираем из part неиспользуемые
+                                part_new = self._correct_part(part, fields_full)
+
+                                if playlistId:
+                                    ids = [x['snippet']['resourceId']['videoId'] for x in content['items']]
+                                else:
+                                    ids = [x['id']['videoId'] for x in content['items']]
+                                videos = self.get_videos_info(ids, fields=fields_full, part=part_new, add_comments=add_comments,
+                                                              comments_limit=comments_limit, add_timecodes=add_timecodes,
+                                                              page_handler=video_handler)
+                                res.extend(videos['items'])
+                                deleted.extend(videos['deleted'])
+                                errors.extend(videos['errors'])
+                            else:
+                                res.extend(content['items'])
+
+                            if page_handler:
+                                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
+                                yt_params = {'url': yt_url, 'q': q, 'channelId': channelId, 'playlistId': playlistId,
+                                             'fromdate': datepart['fromdate'], 'todate':datepart['todate'], 'part': part, 'fields': fields, 'pageToken': pageToken, 'maxResults': maxResults}
+                                params = {'i': i, 'limit': limit}
+                                do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params, params=params)
+                                if do_continue is False:
+                                    done = True
+                                    break
+
+                            if 'nextPageToken' in content:
+                                pageToken = content['nextPageToken']
+                                time.sleep(self.timeout)
+                            else:
                                 done = True
                                 break
 
-                        if 'nextPageToken' in content:
-                            pageToken = content['nextPageToken']
-                            time.sleep(self.timeout)
-                        else:
-                            done = True
-                            break
+                            error_get_content = False  # Ошибок не произошло
+                        except YoutubeException as e:
+                            error_get_content = False  # По умолчанию повторно не перезапрашивать данные
+                            if e.reason in ('quotaExceeded', 'dailyLimitExceeded'):
+                                if self.set_next_api_key():  # Если получен следующий API_KEY, то установить его
+                                    error_get_content = True     # Повторно получить данные
+                                    print('Квота превышена, переключение на следующий API_KEY и перезапрос...')
+                            else:
+                                print('Ошибка:', str(e))
+                            errors.append(e)
 
-                        error_get_content = False  # Ошибок не произошло
-                    except YoutubeException as e:
-                        error_get_content = False  # По умолчанию повторно не перезапрашивать данные
-                        if e.reason in ('quotaExceeded', 'dailyLimitExceeded'):
-                            if self.set_next_api_key():  # Если получен следующий API_KEY, то установить его
-                                error_get_content = True     # Повторно получить данные
-                                print('Квота превышена, переключение на следующий API_KEY и перезапрос...')
-                        else:
-                            print('Ошибка:', str(e))
-                        errors.append(e)
+                        except Exception as e:
+                            errors.append(e)
 
-                    except Exception as e:
-                        errors.append(e)
-                
-        except Exception as e:
-            errors.append(e)
-            print('Ошибка:', str(e))
+            except Exception as e:
+                errors.append(e)
+                print('Ошибка:', str(e))
 
         #self.result_raw = res
         res = res[:limit]
         res = {'items': res, 'deleted': deleted, 'errors': errors}
-        return res
-
-    def get_videos_partion(self, fromdate, todate, q='', channelId='', playlistId='', limit=50,
-                           part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False,
-                           page_handler=None, partion_by=1, add_comments=False, comments_limit=100, add_timecodes=False):
-        """
-        Получение списка видео по поисковому запросу, ID канала или ID плейлиста, запрашивая результат по частям
-            в зависимости от partition_by
-
-        :param fromdate: Начальная дата (может быть None)
-        :param todate: Конечная дата (может быть None)
-        :param q: Поисковая строка
-        :param channelId: ID канала
-        :param playlistId: ID плейлиста
-        :param limit: Лимит записей (Максимум 1000 (Ограничение Youtube 50 записей на странице, всего 20 страниц)
-        :param part: показываемая информация
-        :param fields: поля в резултирующем json
-        :param order: Сортировка 'date','rating','relevance','title','videoCount','viewCount'
-        :param fullInfo: Получать ли полную информацию (
-        :param page_handler: Ф-ция вызываемая после каждого youtube запроса (постраничного)
-            Параметры:  content - Список словарей с данными Youtube
-                        content_raw - Полученный из Youtube необработанный json (словарь с вложенным списком видео)
-                        yt_params - Словарь с параметрами передаваемыми в запросе youtube + url
-                        params - Параметры i, limit с внутренними данными (индекс итерации и лимит получения)
-        :param partion_by: На сколько частей делить период fromdate/todate или по каким периодам получать данные с
-                Youtube 'day' | 'month' | 'year' (Полезно если видео очень много и Youtube урезает результат)
-        :param add_comments: Получать комментарии (работает только если включен параметр fullInfo)
-        :param comments_limit: Максимальное кол-во получаемых комментариев. Поддерживается максимум 100
-        :param add_timecodes: Искать таймкоды в комментариях. Ищется первый комментарий в котором хотябы 2 раза
-            повторяется время. Пример: "8:12 любой текст \n20:25"
-            (работает только если включен параметр fullInfo)
-        :return: Список видео
-        :type fromdate: datetime.datetime|str
-        :type todate: datetime.datetime|str
-        :type q: str
-        :type channelId: str
-        :type playlistId: str
-        :type limit: int
-        :type part: str
-        :type fields: str
-        :type order: str
-        :type fullInfo: bool
-        :type page_handler: function
-        :type partion_by: int|str
-        :rtype: list
-        """
-
-        datepart_list = utils.date_period_into_parts(fromdate, todate, partion_by=partion_by)
-        res = []
-        for datepart in datepart_list:
-            p = self.get_videos(q=q, channelId=channelId, playlistId=playlistId, limit=limit, part=part, fields=fields,
-                                fromdate=datepart['fromdate'], todate=datepart['todate'],  order=order,
-                                fullInfo=fullInfo, page_handler=page_handler,
-                                add_comments=add_comments, comments_limit=comments_limit, add_timecodes=add_timecodes)
-            res.extend(p)
-            time.sleep(self.timeout)
-
-        self.result_raw = res
-        res = res[:limit]
         return res
 
 
@@ -868,6 +814,14 @@ if __name__ == '__main__':
     from pprint import pprint
     #from datetime import datetime
     #yt = YoutubeApi('123')
+    yt = YoutubeApi('AIzaSyBuGHA5Ibmqk-ipJPLgrzgTGYk9VBhGlBA')
+    #res = yt.get_videos_info('T1MjZZM7wOo,dse6AlZROY0,vZ9fWqNYLVE,KL2AiTb2UnQ', fields='id,snippet(title, channelTitle, channelId, publishedAt)', add_timecodes=True, add_comments=False, comments_limit=3)
+    #res = yt.get_videos(videoId='T1MjZZM7wOo,dse6AlZROY0,vZ9fWqNYLVE,KL2AiTb2UnQ', fields='id,snippet(title, channelTitle, channelId, publishedAt)', add_timecodes=True, add_comments=False, comments_limit=3)
+    def ph_func(content, content_raw, yt_params, params):
+        print(yt_params['url'])
+    res = yt.get_videos(partion_by='month', channelId='UCudnwGsIfsKmrkb2YKgW1CA', fields='id,snippet(title, channelTitle, channelId, publishedAt)', fromdate=datetime.datetime(2019,10,6), todate=datetime.datetime.now(), add_timecodes=True, add_comments=False, comments_limit=3, page_handler=ph_func)
+    #pprint(res)
+
     #help(YoutubeApi)
 
 
