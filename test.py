@@ -178,10 +178,25 @@ class TestYoutubeApi(unittest.TestCase):
 
     def _test_get_videos_partion(self):
         from datetime import datetime
-        obj = self.yt.get_videos_partion(fromdate=datetime(2019,1,30,10,30), todate=datetime(2019,2,3), limit=5,
+        obj = self.yt.get_videos(fromdate=datetime(2019,1,30,10,30), todate=datetime(2019,2,3), limit=5,
+                                         partion_by=2, page_handler=videos_partion_handler)
+        self.assertGreaterEqual(len(obj['items']),1)
+        self.assertIn('kind', obj['items'][0])
+        
+        obj = self.yt.get_videos(fromdate=datetime(2018,11,29,10,30), todate=datetime(2019,2,3), limit=20,
+                                         partion_by='month', page_handler=videos_partion_handler)
+        self.assertGreaterEqual(len(obj['items']),1)
+        self.assertIn('kind', obj['items'][0])
+        
+        obj = self.yt.get_videos(fromdate=datetime(2018,11,29,10,30), todate=datetime(2019,2,3), limit=20,
+                                         partion_by='3', page_handler=videos_partion_handler)
+        self.assertGreaterEqual(len(obj['items']),1)
+        self.assertIn('kind', obj['items'][0])
+        
+        obj = self.yt.get_videos(fromdate=datetime(2016,2,27,10,30), todate=datetime(2016,3,2), limit=20,
                                          partion_by='day', page_handler=videos_partion_handler)
-        self.assertGreaterEqual(len(obj),1)
-        self.assertIn('kind', obj[0])
+        self.assertGreaterEqual(len(obj['items']),1)
+        self.assertIn('kind', obj['items'][0])
 
     def _test_get_comments(self):
         obj = self.yt.get_comments(videoId='Dy17RExwe8E')

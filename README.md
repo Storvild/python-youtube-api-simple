@@ -49,6 +49,11 @@ comments = yt.get_comments(parentId='Uggb3EPddGJet3gCoAEC')
 videos = yt.get_videos(playlistId='PLnP4EuRGIgUHuJ0wWST3aFzx0DsThs9Cm')
 ```
 
+#### Формат возвращаемых значений при вызове get_videos, get_videos_info:
+```json
+{'items': [], 'deleted': [], errors: []}
+```
+
 #### Получить список видео с определенного канала по ID-канала c 01.11.2019 по 15.11.2019
 ```python    
 from datetime import datetime
@@ -86,22 +91,20 @@ videos = yt.get_videos(channelId='UC4iAuuvx9hJilx4QOcd8V6A1', fullInfo=True,
 ```
 
 #### Максимальное кол-во информации выдаваемой Youtube до 1000 записей (максимальное кол-во на странице 50 * максимально кол-во страниц 20)
-Для обхода данного ограничения можно воспользоваться методом get_videos_partion
+Для обхода данного ограничения можно воспользоваться параметром partition_by
 Пример получения видео с канала UCSZ69a-0I1RRdNssyttBFcA, максимальное кол-во записей 100, период с 1.12.2019 10:30 по 8.12.2019 00:00 по одному дню на запрос
 ```python
 from datetime import datetime
-videos = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, 
+videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, 
         fromdate=datetime(2019,12,1,10,30), todate=datetime(2019,12,8), partion_by='day')
 ```
-Здесь limit - это лимит записей на каждый запрошенный день
 
 Пример получения видео с разбивкой на 5 запросов (если на один запрос приходит более 50 записей, дополнительно запрашивается следующая страница)
 ```python
 from datetime import datetime
-videos = yt.get_videos_partion(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, 
+videos = yt.get_videos(channelId='UCSZ69a-0I1RRdNssyttBFcA', limit=100, 
         fromdate=datetime(2019,12,1,10,30), todate=datetime(2019,12,8), partion_by=5)
 ```        
-Здесь limit - это лимит записей на каждую запрашиваемую часть
 
 #### Вмешательство в постраничное получение данных
 Если необходимо обрабатывать получение каждой страницы которое вызывается внутри методов, то можно воспользоваться ф-цией обратного вызова page_handler
@@ -113,7 +116,7 @@ def videos_partion_handler(content, content_raw, yt_params, params):
     return True
 
 from datetime import datetime
-obj = self.yt.get_videos_partion(fromdate=datetime(2019,1,30,10,30), todate=datetime(2019,2,3), limit=50,
+obj = self.yt.get_videos(fromdate=datetime(2019,1,30,10,30), todate=datetime(2019,2,3), limit=50,
                                  partion_by='day', page_handler=videos_partion_handler)
 ```
 Ф-ция videos_partion_handler будет вызываться каждый раз после получения новой порции записей из youtube. В yt_params указан запрашиваемый url, и отдельно параметры.
