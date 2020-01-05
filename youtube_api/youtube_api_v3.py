@@ -108,7 +108,6 @@ class YoutubeApi():
         else:
             self.ApiKey = ApiKey
             self.ApiKeyList = [ApiKey]
-        self.result_raw = None  # Оригинальный результат в виде структуры json
         self.timeout = timeout  # Пауза между запросами
 
     @staticmethod
@@ -278,7 +277,6 @@ class YoutubeApi():
         :type page_handler: function
         :rtype: list
         """
-        self.result_raw = None
 
         assert order in ('date','rating','relevance','title','videoCount','viewCount'), 'get_playlists: Неправильный параметр order: {}'.format(order)
         assert channelName!='', 'get_playlists: Не задано имя канала (channelName)'
@@ -315,7 +313,75 @@ class YoutubeApi():
                 time.sleep(self.timeout)
             else:
                 break        
-        self.result_raw = res
+        res = res[:limit]
+        return res
+
+    def get_channels_info(self, channelId='', forUsername='', part='id,snippet,statistics', fields='*', limit=50, order='relevance', page_handler=None):
+        """
+        Информация о каналах перечисленных в channelId через запятую или нахождение каналов пользователя forUsername
+
+        :param channelId: ID Youtube-канала или список через запятую
+        :param forUsername: Имя пользователя для поиска созданных им каналов
+        :param part: id,snippet,statistics,status,contentDetails,contentOwnerDetails,localizations,topicDetails,auditDetails,brandingSettings
+        :param fields: Поля json которые необходимо оставить. В формате 'id,snippet(*)'
+        :param limit: Лимит получаемых записей
+        :param order: Сортировка 'date','rating','relevance','title','videoCount','viewCount'
+        :param page_handler: Ф-ция вызываемая после каждого youtube запроса (постраничного)
+        :return: Список каналов
+        :type channelName: str
+        :type fields: str
+        :type limit: int
+        :type order: str
+        :type page_handler: function
+        :rtype: list
+        """
+        # part = 'id,snippet,statistics,status,contentDetails,contentOwnerDetails,localizations,topicDetails,auditDetails,brandingSettings'
+        if fields in ('', '*'):
+            fields = '*'
+        elif 'nextPageToken' not in fields:
+            fields = 'nextPageToken,items({})'.format(fields)
+
+        maxResults = 50
+        channel_ids = channelId
+        if channelId:
+            url = 'https://www.googleapis.com/youtube/v3/channels?part={part}&fields={fields}' \
+                  '&maxResults={max_results}&key={API_KEY}'.format(
+                **{'channel_id': channelId, 'part': part, 'fields': fields, 'max_results': maxResults, 'API_KEY': self.ApiKey})
+            if type(channelId) == str:
+                channel_ids = channelId.split(',')
+        elif forUsername:
+            url = 'https://www.googleapis.com/youtube/v3/channels?forUsername={for_username}&part={part}&fields={fields}' \
+                  '&maxResults={max_results}&key={API_KEY}'.format(
+                **{'for_username': forUsername, 'part': part, 'fields': fields, 'max_results': maxResults, 'API_KEY': self.ApiKey})
+        else:
+            raise Exception('Должно быть заполнено хотя бы одно поле: channelId (ID канала) или forUsername (пользователь)')
+
+
+        res = []
+        pageToken = ''
+        for i in range(0, limit, maxResults):
+            url_ = url
+            if channelId:
+                url_ = '{}&id={}'.format(url, ','.join(channel_ids[i:i+maxResults]))
+            obj_json = self.download_yt_json(url_, pageToken)
+            content = obj_json
+            res.extend(content['items'])
+
+            if page_handler:
+                yt_url = '{}&pageToken={}'.format(YoutubeApi._clean_url(url), pageToken)
+                yt_params = {'url': yt_url, 'part': snippet, 'fields': fields, 'pageToken': pageToken,
+                             'maxResults': maxResults }
+                params = {'i': i, 'limit': limit}
+                do_continue = page_handler(content=content['items'], content_raw=content, yt_params=yt_params,
+                                           params=params)
+                if do_continue is False:
+                    break
+
+            if 'nextPageToken' in content:
+                pageToken = content['nextPageToken']
+                time.sleep(self.timeout)
+            else:
+                break
         res = res[:limit]
         return res
 
@@ -336,7 +402,6 @@ class YoutubeApi():
         :type page_handler: function
         :rtype: list
         """
-        self.result_raw = None
         assert order in ('date','rating','relevance','title','videoCount','viewCount'), 'get_playlists: Неправильный параметр order: {}'.format(order)
         assert channelId!='', 'get_playlists: Не задан Id канала (channelId)'
         if fields in ('','*'):
@@ -372,7 +437,6 @@ class YoutubeApi():
             else:
                 break
 
-        self.result_raw = res
         res = res[:limit]
         return res
 
@@ -387,7 +451,6 @@ class YoutubeApi():
             :params textFormat: Формат текста в textDisplay - plainText или html (В поле textOriginal только текст)
             :params page_handler: Ф-ция вызываемая при получении порции данных
         """
-        self.result_raw = None
 
         assert videoId!='' or id!='' or parentId!='', 'Должен быть заполнен один из параметров videoId, id или parentId'
 
@@ -449,7 +512,6 @@ class YoutubeApi():
         except Exception as e:
             errors.append(e)
             print('Ошибка при получении комментариев')
-        self.result_raw = res
         res = res[:limit]
         res = {'items': res, 'errors': errors}
         return res
@@ -495,7 +557,6 @@ class YoutubeApi():
         :type add_timecodes: bool
         :rtype: dict
         """
-        #self.result_raw = None
 
         assert type(videoIDs) in (list, tuple, set, str)
         assert comments_limit <= 100
@@ -592,11 +653,10 @@ class YoutubeApi():
                     errors.append(e)
 
 
-        #self.result_raw = res
         res = res[:limit]
         res = {'items': res, 'deleted': deleted, 'errors': errors}
         return res
-    
+
     def get_videos(self, q='', channelId='', playlistId='', videoId='', fromdate=None, todate=None, limit=50, partion_by='1',
                    part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False,
                    page_handler=None, video_handler=None,
@@ -633,7 +693,7 @@ class YoutubeApi():
         :param add_timecodes: Искать таймкоды в комментариях. Ищется первый комментарий в котором хотябы 2 раза
             повторяется время. Пример: "8:12 любой текст \n20:25"
             (работает только если включен параметр fullInfo)
-        :return: Список видео
+        :return: Список видео в json структуре: {'items': [], 'errors': [], 'deleted': []}
         :type q: str
         :type channelId: str
         :type playlistId: str
@@ -651,9 +711,6 @@ class YoutubeApi():
         :type add_timecodes: bool
         :rtype: dict
         """
-        # self.result_raw = None
-
-        # assert channelId != 0 or playlistId != 0
 
         # Если передан videoId с одним или несколькими кодами, то выполнить метод get_videos_info и вернуть результат
         if videoId:
@@ -804,7 +861,6 @@ class YoutubeApi():
                 errors.append(e)
                 print('Ошибка:', str(e))
 
-        #self.result_raw = res
         res = res[:limit]
         res = {'items': res, 'deleted': deleted, 'errors': errors}
         return res
@@ -827,10 +883,10 @@ if __name__ == '__main__':
 
 # WISH
 # Пометка удаленных видео. Если был запрос с id, а в результатах запроса его нет, то помечать видео как deleted
-# Пропуск ошибок
+# + Пропуск ошибок
 # str_to_datetime
 # datetime_to_str
 # + Сделать список API_KEY, по которому в случае ошибки менять на следующий и попытаться снова получить данные
 # Сделать get_videos_info внутренним методом и использовать только get_videos
-# Ошибки складывать в errors
-# Результат метода get_videos_info - {'items'=[], errors=[], deleted=[]}
+# + Ошибки складывать в errors
+# + Результат метода get_videos_info - {'items'=[], errors=[], deleted=[]}
