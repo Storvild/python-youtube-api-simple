@@ -336,9 +336,20 @@ def from_main():
     # pprint(mytest.__code__)
     # pprint(mytest.__defaults__)
 
-
+def get_efimych():
+    #channels = yt.get_channels('efimych', fields='nextPageToken,items(id,snippet(title,channelId,channelTitle,description,publishedAt))', limit=10)
+    # UCBxSJmWHS_Zn3PcO1i1qiCQ
+    
+    videos = yt.get_videos(q='', channelId='UCBxSJmWHS_Zn3PcO1i1qiCQ', playlistId='', fromdate=None, todate=None, limit=30,
+                       part='id,snippet,contentDetails,statistics', fields='*', order='date', fullInfo=False, page_handler=None)
+    for video in videos['items']:
+        pub = video['snippet']['publishedAt']
+        print(video['snippet']['title'], '({}.{}.{})'.format(pub[8:10],pub[5:7],pub[0:4]) ) #.strftime("(%d.%m.%Y)"))
+    #pprint(videos)
+    
+    
 if __name__ == '__main__':
-
+    
     # _get_delta_list_test()
     #get_comments_test()
     #_result_parse_test()
@@ -347,7 +358,8 @@ if __name__ == '__main__':
     #get_videos_test()
     #ytdate_test()
     #_correct_part_test()
-    get_channels_test()
+    #get_channels_test()
     #get_playlists_test()
+    get_efimych()
 
     pass
