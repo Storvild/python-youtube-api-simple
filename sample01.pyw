@@ -6,7 +6,7 @@ class App2(tkinter.Frame):
         super().__init__(master)
         self.master = master
         self.create_widgets()
-    
+
     def create_widgets(self):
         self.master.bind('<Escape>', exit)
         label_head  = tkinter.Label(text='Заголовок')
@@ -22,7 +22,7 @@ class App2(tkinter.Frame):
         #self.label1.bind('<Button>', self.log_add_event)
         
         self.edit_name = tkinter.Entry(self.frame1)
-        self.edit_name.pack(side='top', fill='both', expand=1)
+        self.edit_name.pack(side='left', fill='x', expand=1)
         self.edit_name.bind("<Return>", self.log_add_event)
         self.edit_name.focus()
         
@@ -52,6 +52,15 @@ class App2(tkinter.Frame):
         self.label_footer = tkinter.Label(text='', bg='#DDD')
         self.label_footer.pack(side='bottom', fill='x')
 
+
+        self.optionmenu_var = tkinter.StringVar()
+        menuitems = ['Первый', 'Второй', '-', 'Третий']
+        self.optionmenu = tkinter.OptionMenu(self.frame1, self.optionmenu_var, *menuitems, command=self.optionmenu_click)
+        self.optionmenu.pack(side='left')
+        
+        self.menu = tkinter.Menu()
+        #self.config(menu=self.menu)
+        #self.menu.pack()
                 
         # Пример
         # def open_file():
@@ -77,6 +86,9 @@ class App2(tkinter.Frame):
         # file_content.pack(side=LEFT, fill=BOTH, expand=1)
         # Yscroll.pack(side=LEFT, fill=Y)
         # Xscroll.pack(side=BOTTOM, fill=X)
+
+    def optionmenu_click(self, obj):
+        print('CLICK! {}'.format(obj))
 
     def wordwrap_click(self):
         #self.memo1.insert(1.0, 'click {}\n'.format(self.memo_wordwrap.get()))
@@ -145,8 +157,17 @@ class App1(tkinter.Frame):
 
     
 
+
 root = tkinter.Tk()
 root.geometry("640x480")
+
+# Меню (https://python-scripts.com/question/14329)
+main_menu = tkinter.Menu()
+root.config(menu=main_menu)
+#fm = tkinter.Menu(main_menu, tearoff=0)
+#main_menu.add_cascade(label="File", main_menu=
+fm = main_menu.add_command(label="New", command=None)
+
 #app = App1(master=root)
 app = App2(master=root)
 app.mainloop()
